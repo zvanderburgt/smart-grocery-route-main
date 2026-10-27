@@ -1,0 +1,265 @@
+- generic:
+  - generic:
+    - generic:
+      - region "Notifications alt+T"
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Smart Grocery List
+                - generic:
+                  - generic:
+                    - generic: Preparing tools
+                  - generic:
+                    - img
+                    - text: Offline
+              - generic:
+                - button:
+                  - img
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - textbox:
+                - /placeholder: Add Grocery
+              - button:
+                - img
+              - button:
+                - img
+              - button:
+                - img
+    - generic:
+      - generic:
+        - generic: 🛒
+        - heading [level=2]: Your list is empty
+        - paragraph: Add items manually, use voice input, or use the camera to scan a list. The app will learn your store layout as you shop!
+        - button:
+          - img
+          - text: How does learning work?
+  - dialog:
+    - generic:
+      - heading [level=2]:
+        - img
+        - generic: Settings
+      - paragraph: Preferences, PWA health, and diagnostics
+    - generic:
+      - generic:
+        - heading [level=3]: Quick Actions
+        - generic:
+          - button:
+            - img
+            - generic:
+              - generic: Favorites
+              - generic: 0 saved
+          - button:
+            - img
+            - generic:
+              - generic: Training
+              - generic: 0 brands
+          - button:
+            - img
+            - generic:
+              - generic: Statistics
+              - generic: View stats
+          - button:
+            - img
+            - generic:
+              - generic: Learning
+              - generic: How it works
+      - generic:
+        - heading [level=3]: Preferences
+        - generic:
+          - generic:
+            - generic:
+              - generic: Smart Suggestions
+              - generic: Show item suggestions as you shop
+            - switch [checked]
+          - generic:
+            - generic:
+              - generic: Confidence Indicators
+              - generic: Show category prediction confidence
+            - switch [checked]
+      - generic:
+        - heading [level=3]: OCR Settings
+        - generic:
+          - generic:
+            - img
+            - generic:
+              - generic:
+                - generic:
+                  - img
+                  - text: Cloud OCR
+                - generic:
+                  - img
+                  - text: Invalid model
+              - generic: minimax/minimax-m3:free
+              - generic: Model not found on OpenRouter
+              - generic:
+                - generic: ✓ Best accuracy
+                - generic: ✓ No download
+                - generic: ✗ Needs internet
+      - generic:
+        - heading [level=3]: OpenRouter API Key
+        - generic:
+          - generic:
+            - generic:
+              - textbox:
+                - /placeholder: sk-or-v1-...
+                - text: sk-or-v1-abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef
+              - button: Show
+          - generic:
+            - button: Update Key
+            - button:
+              - img
+              - text: Clear
+            - button:
+              - img
+              - text: How to Get Key
+          - generic:
+            - generic: Cloud Model
+            - combobox [expanded]:
+              - generic: Pick a free model (optional)
+              - img
+            - textbox:
+              - /placeholder: minimax/minimax-m3:free
+              - text: minimax/minimax-m3:free
+            - paragraph:
+              - generic:
+                - img
+                - text: Model not found on OpenRouter
+            - paragraph:
+              - text: "Enter the model ID from OpenRouter. Example:"
+              - code: minimax/minimax-m3:free
+          - paragraph:
+            - text: Get a free key at
+            - link:
+              - /url: https://openrouter.ai/keys
+              - text: openrouter.ai/keys
+      - generic:
+        - heading [level=3]: Data Management
+        - paragraph: The app learns your shopping habits over time. You can reset this learning data without clearing your list.
+        - button [disabled]:
+          - img
+          - generic: Clear Learning Data
+      - generic:
+        - heading [level=3]: Service Worker
+        - generic:
+          - generic:
+            - generic: Registered
+            - generic: "No"
+          - generic:
+            - generic: Active
+            - generic: "No"
+          - generic:
+            - generic: Controlling
+            - generic: "No"
+      - generic:
+        - heading [level=3]: Storage Quota
+        - generic:
+          - generic:
+            - generic: Used
+            - generic: 340.53 MB
+          - progressbar
+          - generic:
+            - generic: 14%
+            - generic: 2.33 GB
+      - generic:
+        - heading [level=3]: Cache Storage
+        - generic:
+          - generic:
+            - generic: transformers-cache
+            - generic: 340.52 MB
+          - generic:
+            - generic: Total
+            - generic: 340.52 MB
+      - generic:
+        - heading [level=3]:
+          - img
+          - text: Google Sheets Sync
+        - generic:
+          - generic:
+            - heading [level=3]: Connection Status
+            - generic:
+              - generic:
+                - img
+                - text: Disconnected
+              - generic: Not connected to Google Sheets
+          - generic:
+            - heading [level=3]: Google Account
+            - generic:
+              - generic:
+                - img
+                - generic:
+                  - generic: Not connected
+              - button [disabled]:
+                - img
+                - generic: Connect
+          - generic:
+            - heading [level=3]: Spreadsheet ID
+            - generic:
+              - generic:
+                - textbox:
+                  - /placeholder: Enter Sheet ID from URL
+                - button [disabled]:
+                  - img
+                  - generic: Save
+              - paragraph:
+                - text: "Found in the URL:"
+                - code: "docs.google.com/spreadsheets/d/{SHEET_ID}/edit"
+          - generic:
+            - heading [level=3]: Sync Controls
+            - generic:
+              - button [disabled]:
+                - img
+                - generic: Sync Now
+              - generic:
+                - generic: Last sync
+                - generic: Never
+          - generic:
+            - heading [level=3]:
+              - img
+              - text: Setup Instructions
+            - button:
+              - generic: Click to expand setup guide
+              - img
+      - generic:
+        - button:
+          - img
+          - generic: Export Diagnostics
+        - button:
+          - img
+          - generic: Clear All Caches
+    - button:
+      - img
+      - generic: Close
+  - listbox [ref=e188]:
+    - option "stealth/union-alpha" [active] [ref=e189]:
+      - generic [ref=e191]: stealth/union-alpha
+    - option "inclusionai/ling-3.0-flash-vl:free" [ref=e192]:
+      - generic [ref=e194]: inclusionai/ling-3.0-flash-vl:free
+    - option "nex-agi/nex-n2.5-mini:free" [ref=e195]:
+      - generic [ref=e197]: nex-agi/nex-n2.5-mini:free
+    - option "nex-agi/nex-n2.5-pro:free" [ref=e198]:
+      - generic [ref=e200]: nex-agi/nex-n2.5-pro:free
+    - option "dots-studio/dots-3-note-preview:free" [ref=e201]:
+      - generic [ref=e203]: dots-studio/dots-3-note-preview:free
+    - option "thinkingmachines/inkling-small:free" [ref=e204]:
+      - generic [ref=e206]: thinkingmachines/inkling-small:free
+    - option "thinkingmachines/inkling:free" [ref=e207]:
+      - generic [ref=e209]: thinkingmachines/inkling:free
+    - option "nvidia/nemotron-3.5-content-safety:free" [ref=e210]:
+      - generic [ref=e212]: nvidia/nemotron-3.5-content-safety:free
+    - option "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" [ref=e213]:
+      - generic [ref=e215]: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+    - option "google/gemma-4-26b-a4b-it:free" [ref=e216]:
+      - generic [ref=e218]: google/gemma-4-26b-a4b-it:free
+    - option "google/gemma-4-31b-it:free" [ref=e219]:
+      - generic [ref=e221]: google/gemma-4-31b-it:free
+    - option "google/lyria-3-pro-preview" [ref=e222]:
+      - generic [ref=e224]: google/lyria-3-pro-preview
+    - option "google/lyria-3-clip-preview" [ref=e225]:
+      - generic [ref=e227]: google/lyria-3-clip-preview
+    - option "openrouter/free" [ref=e228]:
+      - generic [ref=e230]: openrouter/free
+    - img [ref=e232]

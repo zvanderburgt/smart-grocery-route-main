@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-14T00:00:00.000Z",
+  "title": "Design System: Smart Grocery List",
+  "extensions": {
+    "colorMeta": {
+      "primary-green": {
+        "role": "primary",
+        "displayName": "Fresh Produce Green",
+        "canonical": "oklch(0.55 0.19 145)",
+        "tonalRamp": [
+          "oklch(0.18 0.06 145)",
+          "oklch(0.27 0.09 145)",
+          "oklch(0.36 0.12 145)",
+          "oklch(0.46 0.16 145)",
+          "oklch(0.55 0.19 145)",
+          "oklch(0.66 0.17 145)",
+          "oklch(0.78 0.13 145)",
+          "oklch(0.91 0.06 145)"
+        ]
+      },
+      "accent-citrus": {
+        "role": "secondary",
+        "displayName": "Citrus Signal",
+        "canonical": "oklch(0.65 0.21 35)",
+        "tonalRamp": [
+          "oklch(0.2 0.08 35)",
+          "oklch(0.3 0.12 35)",
+          "oklch(0.4 0.16 35)",
+          "oklch(0.52 0.19 35)",
+          "oklch(0.65 0.21 35)",
+          "oklch(0.75 0.18 35)",
+          "oklch(0.85 0.12 35)",
+          "oklch(0.94 0.06 35)"
+        ]
+      },
+      "neutral-surface": {
+        "role": "neutral",
+        "displayName": "Cool Mint Field",
+        "canonical": "oklch(0.98 0.01 145)",
+        "tonalRamp": [
+          "oklch(0.16 0.01 145)",
+          "oklch(0.26 0.01 145)",
+          "oklch(0.36 0.01 145)",
+          "oklch(0.5 0.01 145)",
+          "oklch(0.64 0.01 145)",
+          "oklch(0.76 0.01 145)",
+          "oklch(0.88 0.01 145)",
+          "oklch(0.98 0.01 145)"
+        ]
+      },
+      "neutral-ink": {
+        "role": "neutral",
+        "displayName": "Route Ink",
+        "canonical": "oklch(0.25 0.02 145)",
+        "tonalRamp": [
+          "oklch(0.12 0.02 145)",
+          "oklch(0.2 0.02 145)",
+          "oklch(0.3 0.02 145)",
+          "oklch(0.42 0.02 145)",
+          "oklch(0.55 0.02 145)",
+          "oklch(0.67 0.02 145)",
+          "oklch(0.8 0.02 145)",
+          "oklch(0.93 0.01 145)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "App title and highest-priority heading context."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Primary grocery item readability and scanning under motion."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Status chips and compact metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-card-lift",
+        "value": "0 1px 2px rgba(15, 23, 42, 0.08)",
+        "purpose": "Baseline lift for cards and controls."
+      },
+      {
+        "name": "overlay-lift",
+        "value": "0 10px 30px rgba(15, 23, 42, 0.18)",
+        "purpose": "Modal and dialog prominence."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default state-transition easing."
+      },
+      {
+        "name": "duration-fast",
+        "value": "200ms",
+        "purpose": "Hover, focus, and compact reveal transitions."
+      },
+      {
+        "name": "duration-medium",
+        "value": "300ms",
+        "purpose": "Section and suggestion reveal motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action button for add and confirm flows.",
+      "html": "<button class=\"ds-btn-primary\">Add Item</button>",
+      "css": ".ds-btn-primary { font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 0.875rem; font-weight: 600; line-height: 1; letter-spacing: 0.01em; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.25rem; padding: 0.5rem 1rem; border: 1px solid transparent; border-radius: 0.625rem; background: var(--primary); color: var(--primary-foreground); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background: color-mix(in oklab, var(--primary) 90%, black 10%); transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-btn-primary:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Ghost Icon Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Toolbar and settings affordance with low visual weight.",
+      "html": "<button class=\"ds-btn-ghost\" aria-label=\"Settings\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9 3.5-1.76-.55a7.98 7.98 0 0 0-.63-1.53l.88-1.63-1.7-1.7-1.63.88c-.48-.27-1-.48-1.54-.63L13 3h-2l-.55 1.77c-.53.14-1.05.35-1.53.62l-1.64-.88-1.7 1.7.88 1.64c-.26.48-.47 1-.61 1.53L3 11v2l1.77.55c.14.53.35 1.05.62 1.53l-.88 1.64 1.7 1.7 1.64-.88c.48.27 1 .48 1.53.62L11 21h2l.55-1.77c.54-.14 1.06-.35 1.54-.62l1.63.88 1.7-1.7-.88-1.64c.27-.48.48-1 .63-1.53L21 13v-1Z\" fill=\"currentColor\"/></svg></button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; border: 1px solid transparent; background: transparent; color: var(--foreground); transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), color 200ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-ghost svg { width: 1.1rem; height: 1.1rem; } .ds-btn-ghost:hover { background: color-mix(in oklab, var(--accent) 12%, transparent); color: var(--accent-foreground); } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Irreversible action button for clear and remove flows.",
+      "html": "<button class=\"ds-btn-danger\">Clear List</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; height: 2.25rem; padding: 0.5rem 1rem; border-radius: 0.625rem; border: 1px solid transparent; background: var(--destructive); color: var(--destructive-foreground); font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 0.875rem; font-weight: 600; transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-danger:hover { background: color-mix(in oklab, var(--destructive) 90%, black 10%); transform: translateY(-1px); } .ds-btn-danger:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 45%, transparent); }"
+    },
+    {
+      "name": "List Input Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Primary list entry field with clear focus and disabled states.",
+      "html": "<input class=\"ds-input\" placeholder=\"Add item or say a command...\" />",
+      "css": ".ds-input { width: min(100%, 34rem); height: 2.75rem; padding: 0.25rem 0.75rem; border-radius: 0.625rem; border: 1px solid var(--input); background: transparent; color: var(--foreground); font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 1rem; font-weight: 500; letter-spacing: 0.005em; line-height: 1.4; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); transition: border-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), background-color 200ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:hover { background: color-mix(in oklab, var(--card) 60%, transparent); } .ds-input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Section Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Grouped grocery-section container with count and status support.",
+      "html": "<article class=\"ds-card\"><header class=\"ds-card-head\"><span class=\"ds-card-title\">Produce</span><span class=\"ds-card-count\">3/5</span></header><div class=\"ds-card-body\">Grouped items render here.</div></article>",
+      "css": ".ds-card { width: min(100%, 38rem); border: 1px solid color-mix(in oklab, var(--border) 70%, transparent); border-radius: 0.75rem; background: color-mix(in oklab, var(--card) 92%, transparent); color: var(--card-foreground); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); overflow: clip; } .ds-card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.625rem 0.75rem; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); } .ds-card-title { font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); } .ds-card-count { font-size: 0.75rem; font-weight: 600; padding: 0.1rem 0.45rem; border-radius: 0.375rem; background: color-mix(in oklab, var(--secondary) 100%, transparent); color: var(--secondary-foreground); } .ds-card-body { padding: 0.75rem; font-size: 0.9375rem; line-height: 1.4; }"
+    },
+    {
+      "name": "Smart Confidence Badge",
+      "kind": "chip",
+      "refersTo": "badge-smart",
+      "description": "Compact learned/suggestion confidence indicator.",
+      "html": "<span class=\"ds-chip-smart\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 3.5 14.6 8l4.9 1.1-3.4 3.8.5 5-4.6-2.1-4.6 2.1.5-5-3.4-3.8L9.4 8 12 3.5Z\" fill=\"currentColor\"/></svg>Smart</span>",
+      "css": ".ds-chip-smart { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.125rem 0.5rem; border-radius: 0.375rem; border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent); background: color-mix(in oklab, var(--accent) 12%, transparent); color: var(--accent-foreground); font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 0.6875rem; font-weight: 700; line-height: 1; letter-spacing: 0.03em; text-transform: none; } .ds-chip-smart svg { width: 0.7rem; height: 0.7rem; }"
+    },
+    {
+      "name": "Tooltip",
+      "kind": "custom",
+      "refersTo": "tooltip-content",
+      "description": "Compact system-state helper labels for icon-only status indicators.",
+      "html": "<span class=\"ds-tooltip\" role=\"tooltip\">Offline model ready</span>",
+      "css": ".ds-tooltip { display: inline-flex; align-items: center; justify-content: center; max-width: 16rem; padding: 0.375rem 0.625rem; border-radius: 0.375rem; background: var(--primary); color: var(--primary-foreground); font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.2; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22); animation: ds-tooltip-in 180ms cubic-bezier(0.4, 0, 0.2, 1); } @keyframes ds-tooltip-in { from { opacity: 0; transform: translateY(4px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }"
+    },
+    {
+      "name": "Dropdown Action Item",
+      "kind": "custom",
+      "refersTo": "dropdown-menu-item",
+      "description": "Menu-row pattern used for recipe, scan, and bulk-add actions.",
+      "html": "<div class=\"ds-menu-surface\"><button class=\"ds-menu-item\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2 14.5 8 21 10.5 14.5 13 12 19.5 9.5 13 3 10.5 9.5 8 12 2Z\" fill=\"currentColor\"/></svg><span>Add from recipe</span></button></div>",
+      "css": ".ds-menu-surface { width: 14rem; border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.25rem; background: var(--popover); color: var(--popover-foreground); box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14); } .ds-menu-item { width: 100%; display: flex; align-items: center; gap: 0.5rem; border: none; border-radius: 0.25rem; background: transparent; color: inherit; padding: 0.375rem 0.5rem; text-align: left; font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 0.875rem; line-height: 1.3; cursor: pointer; } .ds-menu-item svg { width: 1rem; height: 1rem; color: var(--muted-foreground); } .ds-menu-item:hover, .ds-menu-item:focus-visible { background: var(--accent); color: var(--accent-foreground); outline: none; }"
+    },
+    {
+      "name": "Progress Track",
+      "kind": "custom",
+      "refersTo": "progress",
+      "description": "Compact completion progress used in the shopping header.",
+      "html": "<div class=\"ds-progress\" role=\"progressbar\" aria-valuenow=\"62\" aria-valuemin=\"0\" aria-valuemax=\"100\"><div class=\"ds-progress-indicator\" style=\"transform: translateX(-38%);\"></div></div>",
+      "css": ".ds-progress { position: relative; width: min(100%, 22rem); height: 0.5rem; overflow: hidden; border-radius: 9999px; background: color-mix(in oklab, var(--primary) 20%, transparent); } .ds-progress-indicator { height: 100%; width: 100%; flex: 1 1 auto; background: var(--primary); transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1); }"
+    },
+    {
+      "name": "Dialog Overlay",
+      "kind": "custom",
+      "refersTo": "dialog-content",
+      "description": "Modal overlay and panel for focused confirmation or edit tasks.",
+      "html": "<div class=\"ds-dialog-overlay\"><section class=\"ds-dialog\"><header class=\"ds-dialog-head\"><h3>Edit Item</h3><button class=\"ds-dialog-close\" aria-label=\"Close\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M18 6 6 18M6 6l12 12\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button></header><p class=\"ds-dialog-body\">Dialog content area</p></section></div>",
+      "css": ".ds-dialog-overlay { position: relative; inset: 0; display: grid; place-items: center; width: min(100%, 30rem); min-height: 18rem; background: rgba(0, 0, 0, 0.5); border-radius: 0.5rem; } .ds-dialog { position: relative; width: min(100%, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; display: grid; gap: 1rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--background); color: var(--foreground); box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18); animation: ds-dialog-in 200ms cubic-bezier(0.4, 0, 0.2, 1); padding: 1rem; } .ds-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; } .ds-dialog-head h3 { margin: 0; font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; font-size: 1.125rem; line-height: 1; font-weight: 600; } .ds-dialog-close { position: absolute; top: 1rem; right: 1rem; width: 1.5rem; height: 1.5rem; border: none; border-radius: 2px; opacity: 0.7; background: transparent; color: var(--muted-foreground); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-dialog-close svg { width: 0.9rem; height: 0.9rem; } .ds-dialog-close:hover { opacity: 1; background: var(--accent); } .ds-dialog-close:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring); } .ds-dialog-body { margin: 0; font-size: 0.875rem; line-height: 1.4; color: var(--muted-foreground); } @keyframes ds-dialog-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Aisle Intelligence Companion",
+    "overview": "This interface is designed as a calm operational layer for real grocery trips, not as entertainment and not as analytics theater. The system prioritizes immediate readability, one-handed interaction, and confidence cues that make machine learning feel useful instead of mysterious.\n\nVisual density stays practical: clear top-level hierarchy, compact but touch-safe controls, and fast state feedback for list progression. Intelligence appears as gentle reinforcement (confidence badges, smart suggestions, route-aware grouping) while the main task of adding and checking off items always stays dominant.\n\nThe system explicitly rejects PRODUCT.md anti-references by design: playful gamified shopping app language, ad-heavy coupon-app aesthetics, and enterprise dashboard visual language are prohibited.",
+    "keyCharacteristics": [
+      "High legibility in varied store lighting and distracted use contexts.",
+      "Restrained color strategy with one primary action hue and one signal accent.",
+      "State-driven motion and micro-feedback, never decorative choreography.",
+      "Familiar control vocabulary (input, button, card, badge, dialog) with consistent shape and focus treatment.",
+      "Mobile-first spacing and sticky interaction zones for in-motion use."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Scarcity Rule",
+        "body": "Primary and accent colors are reserved for action, state, and guidance. Decorative flooding is prohibited.",
+        "section": "colors"
+      },
+      {
+        "name": "The Scan-First Rule",
+        "body": "Body and action text must remain legible at glance distance on mobile; ornamental display behavior is forbidden.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-by-Default Rule",
+        "body": "Surfaces stay flat at rest. Lift is reserved for interaction state or modal context.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Complete State Matrix Rule",
+        "body": "Buttons, inputs, badges, cards, and overlays must always define default, hover, focus-visible, active, disabled, and error behavior before shipping.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep action color assignment strict: green for primary progression, citrus for signal-level emphasis.",
+      "Do preserve the compact control rhythm (2.25rem to 3.5rem control heights) for one-handed scanning and tapping.",
+      "Do use explicit interaction states across every control: default, hover, focus, active, disabled, and error.",
+      "Do surface route-learning intelligence as supportive context, never as the main visual payload.",
+      "Do maintain strong text contrast on tinted surfaces and status badges.",
+      "Do keep destructive actions visually distinct from progression actions at every breakpoint."
+    ],
+    "donts": [
+      "Don't introduce a playful gamified shopping app tone in visuals, copy cadence, or motion behavior.",
+      "Don't adopt ad-heavy coupon-app aesthetics (attention-fragmenting banners, aggressive promotional color bursts, noisy CTA stacks).",
+      "Don't drift into enterprise dashboard visual language (dense metric tiles, analytic-heavy framing, command-center styling).",
+      "Don't use decorative motion that does not communicate state or workflow progression.",
+      "Don't apply heavy color or full-saturation accents to inactive states.",
+      "Don't use primary progression green for warning, destructive, or neutral inactive states."
+    ]
+  }
+}

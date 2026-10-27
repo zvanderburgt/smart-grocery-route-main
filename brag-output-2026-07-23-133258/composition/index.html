@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@phosphor-icons/web"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #f5f9f5;
+        font-family: 'Space Grotesk', system-ui, sans-serif;
+        color: #1a2b20;
+      }
+      .clip {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+      }
+      .clip.flex-center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* ===== SCENE 1: HOOK ===== */
+      #hook-line1 {
+        position: absolute;
+        left: 0; right: 0;
+        top: 38%;
+        text-align: center;
+        font-size: 72px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #1a2b20;
+        width: 100%;
+      }
+      #hook-line2 {
+        position: absolute;
+        left: 0; right: 0;
+        top: 52%;
+        text-align: center;
+        font-size: 72px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #3a9a5c;
+        width: 100%;
+      }
+
+      /* ===== SCENE 2: SMART LIST ===== */
+      #scene2-bg { background: #f5f9f5; z-index: 3; }
+      #scene2-content {
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 20px;
+        padding: 60px 140px;
+        z-index: 4;
+      }
+      .list-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #4d5f50;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+
+      /* App-style section card - matches actual app */
+      .grocery-section {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e5eae5;
+        padding: 16px 0;
+        margin-bottom: 10px;
+        width: 920px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+      }
+      .grocery-section.learned {
+        background: #f5f9f5;
+        border-color: rgba(58,154,92,0.2);
+      }
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px 10px 16px;
+      }
+      .collapse-btn {
+        width: 28px; height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: #6b7a6e;
+        opacity: 0.7;
+        transition: opacity 0.2s, background 0.2s;
+        flex-shrink: 0;
+      }
+      .collapse-btn:hover {
+        opacity: 1;
+        background: rgba(0,0,0,0.04);
+      }
+      .collapse-icon {
+        width: 16px; height: 16px;
+        transition: transform 0.2s ease;
+      }
+      .collapse-icon.collapsed {
+        transform: rotate(-90deg);
+      }
+      .section-icon-circle {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        background: rgba(58,154,92,0.10);
+        border: 1px solid rgba(58,154,92,0.15);
+        flex-shrink: 0;
+      }
+      .section-icon-circle svg {
+        width: 20px; height: 20px;
+        color: #3a9a5c;
+      }
+      .section-title {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #1a2b20;
+      }
+      .smart-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #d48a2c;
+        background: rgba(212,138,44,0.10);
+        border: 1px solid rgba(212,138,44,0.30);
+        padding: 2px 8px;
+        border-radius: 6px;
+        letter-spacing: 0.02em;
+        flex-shrink: 0;
+      }
+      .smart-badge svg {
+        width: 11px; height: 11px;
+      }
+      .confidence-icon {
+        width: 14px; height: 14px;
+        color: #3a9a5c;
+        flex-shrink: 0;
+      }
+      .section-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: #6b7a6e;
+        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+      }
+      .section-divider {
+        height: 1px;
+        background: #e5eae5;
+        margin: 0 16px 0 16px;
+      }
+
+      /* App-style item row */
+      .item-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 12px 14px;
+        margin: 0 8px;
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e5eae5;
+      }
+      .item-row + .item-row { margin-top: 6px; }
+      .item-checkbox {
+        width: 28px; height: 28px;
+        border-radius: 6px;
+        border: 2px solid #c8d4c9;
+        flex-shrink: 0;
+        background: transparent;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+      }
+      .item-checkbox:hover {
+        border-color: #3a9a5c;
+        background: rgba(58,154,92,0.05);
+      }
+      .item-checkbox.checked {
+        background: #3a9a5c;
+        border-color: #3a9a5c;
+      }
+      .item-checkbox.checked svg {
+        opacity: 1;
+      }
+      .item-checkbox svg {
+        width: 16px; height: 16px;
+        color: white;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .item-name {
+        flex: 1;
+        font-size: 16px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        color: #1a2b20;
+        line-height: 1.3;
+      }
+      .item-name.checked {
+        text-decoration: line-through;
+        color: #6b7a6e;
+      }
+      .item-qty {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7a6e;
+        flex-shrink: 0;
+      }
+      .item-actions {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: #6b7a6e;
+        opacity: 0;
+        transition: opacity 0.2s, background 0.2s, color 0.2s;
+        flex-shrink: 0;
+      }
+      .item-row:hover .item-actions {
+        opacity: 1;
+      }
+      .item-actions:hover {
+        background: rgba(0,0,0,0.06);
+        color: #1a2b20;
+      }
+      .item-actions svg {
+        width: 18px; height: 18px;
+      }
+
+      /* ===== SCENE 3: INPUT ===== */
+      #scene3-bg { background: #f5f9f5; z-index: 5; }
+      #scene3-content {
+        flex-direction: row;
+        padding: 60px 200px;
+        gap: 48px;
+        z-index: 6;
+      }
+      .input-card {
+        flex: 0 0 680px;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 44px;
+        border: 1px solid #e5eae5;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+      }
+      .icon-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .icon-circle {
+        width: 56px; height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #ffffff;
+      }
+      .icon-circle.mic { background: #3a9a5c; }
+      .icon-circle.camera { background: #d48a2c; }
+      .card-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #4d5f50;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .card-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #1a2b20;
+        margin-bottom: 12px;
+      }
+      .card-detail {
+        font-size: 20px;
+        color: #4d5f50;
+        font-weight: 500;
+        line-height: 1.6;
+      }
+      .typed-text {
+        font-size: 28px;
+        font-weight: 600;
+        color: #1a2b20;
+        margin-top: 16px;
+        min-height: 40px;
+      }
+      .bottom-tagline {
+        position: absolute;
+        bottom: 80px;
+        left: 0; right: 0;
+        text-align: center;
+        font-size: 24px;
+        font-weight: 500;
+        color: #4d5f50;
+      }
+
+      /* ===== SCENE 4: LEARNING ===== */
+      #scene4-bg { background: #f5f9f5; z-index: 7; }
+      #scene4-content {
+        flex-direction: column;
+        gap: 40px;
+        text-align: center;
+        z-index: 8;
+      }
+      .badge-row { display: flex; gap: 20px; justify-content: center; }
+      .learn-badge {
+        background: #2d7a48;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 700;
+        padding: 10px 24px;
+        border-radius: 10px;
+        letter-spacing: 0.03em;
+      }
+      .confidence-badge {
+        background: #b8721a;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 700;
+        padding: 10px 24px;
+        border-radius: 10px;
+        letter-spacing: 0.03em;
+      }
+      .payoff-main {
+        font-size: 56px;
+        font-weight: 700;
+        color: #1a2b20;
+      }
+      .payoff-sub {
+        font-size: 28px;
+        font-weight: 500;
+        color: #4d5f50;
+      }
+
+      /* ===== SCENE 5: OUTRO ===== */
+      #scene5-bg { background: #f5f9f5; z-index: 9; }
+      #scene5-content {
+        flex-direction: column;
+        gap: 24px;
+        text-align: center;
+        z-index: 10;
+      }
+      .logo-wordmark {
+        font-size: 64px;
+        font-weight: 700;
+        color: #1a2b20;
+      }
+      .accent-bar {
+        width: 60px;
+        height: 4px;
+        background: #3a9a5c;
+        border-radius: 2px;
+      }
+      .tagline-final {
+        font-size: 26px;
+        font-weight: 500;
+        color: #4d5f50;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="20"
+    >
+      <audio id="bg-music" data-start="0" data-duration="20" data-track-index="10" data-volume="0.32"
+        src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"></audio>
+
+      <!-- ===== SCENE 1: HOOK (0–3s) ===== -->
+      <div id="hook-line1" class="clip" data-start="0" data-duration="3" data-track-index="1">
+        Your grocery store has a layout.
+      </div>
+      <div id="hook-line2" class="clip" data-start="0" data-duration="3" data-track-index="2">
+        Your list should too.
+      </div>
+
+      <!-- ===== SCENE 2: SMART LIST (3–8s) ===== -->
+      <div id="scene2-bg" class="clip" data-start="3" data-duration="5" data-track-index="12"></div>
+
+      <div id="scene2-content" class="clip flex-center" data-start="3" data-duration="5" data-track-index="13">
+        <div class="list-container">
+          <div id="list-title" class="list-label">Smart List</div>
+
+          <!-- Produce section -->
+          <div id="sec-produce" class="grocery-section learned">
+            <div class="section-header">
+              <button class="collapse-btn" aria-label="Expand section">
+                <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+              <div class="section-icon-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 17a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v4z"/>
+                  <path d="M12 17V7"/>
+                  <path d="M7 7h10"/>
+                </svg>
+              </div>
+              <div class="section-title">Produce</div>
+              <div class="smart-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 18a6 6 0 0 0 0-12v12z"/></svg>Smart</div>
+              <div class="confidence-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/></svg></div>
+              <span class="section-count">3/3</span>
+            </div>
+            <div class="section-divider"></div>
+            <div class="item-row">
+              <div class="item-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="item-name">Bananas</div>
+              <div class="item-qty">Quantity 4</div>
+              <button class="item-actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="item-row">
+              <div class="item-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="item-name">Avocados</div>
+              <div class="item-qty">Quantity 2</div>
+              <button class="item-actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="item-row">
+              <div class="item-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="item-name">Spinach</div>
+              <div class="item-qty">Quantity 1</div>
+              <button class="item-actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Dairy & Eggs section -->
+          <div id="sec-dairy" class="grocery-section learned">
+            <div class="section-header">
+              <button class="collapse-btn" aria-label="Expand section">
+                <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+              <div class="section-icon-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="13" rx="9" ry="7"/>
+                  <path d="M3 13a9 7 0 0 1 18 0"/>
+                </svg>
+              </div>
+              <div class="section-title">Dairy & Eggs</div>
+              <div class="smart-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 18a6 6 0 0 0 0-12v12z"/></svg>Smart</div>
+              <div class="confidence-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/></svg></div>
+              <span class="section-count">2/2</span>
+            </div>
+            <div class="section-divider"></div>
+            <div class="item-row">
+              <div class="item-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="item-name">Milk</div>
+              <div class="item-qty">Quantity 1</div>
+              <button class="item-actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="item-row">
+              <div class="item-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="item-name">Eggs</div>
+              <div class="item-qty">Quantity 12</div>
+              <button class="item-actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Meat & Poultry section -->
+          <div id="sec-meat" class="grocery-section learned">
+            <div class="section-header">
+              <button class="collapse-btn" aria-label="Expand section">
+                <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+              <div class="section-icon-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2"/>
+                  <path d="M2 13h20"/>
+                  <path d="M8 13v8"/>
+                  <path d="M16 13v8"/>
+                </svg>
+              </div>
+              <div class="section-title">Meat & Poultry</div>
+              <div class="smart-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 18a6 6 0 0 0 0-12v12z"/></svg>Smart</div>
+              <div class="confidence-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/></svg></div>
+              <span class="section-count">1/1</span>
+            </div>
+            <div class="section-divider"></div>
+            <div class="item-row">
+              <div class="item-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="item-name">Chicken breast</div>
+              <div class="item-qty">Quantity 2</div>
+              <button class="item-actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Pantry & Dry Goods section -->
+          <div id="sec-pantry" class="grocery-section learned">
+            <div class="section-header">
+              <button class="collapse-btn" aria-label="Expand section">
+                <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+              <div class="section-icon-circle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 20h20"/>
+                  <path d="M4 20V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16"/>
+                  <path d="M10 4v16"/>
+                  <path d="M14 4v16"/>
+                </svg>
+              </div>
+              <div class="section-title">Pantry & Dry Goods</div>
+              <div class="smart-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 18a6 6 0 0 0 0-12v12z"/></svg>Smart</div>
+              <div class="confidence-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/></svg></div>
+              <span class="section-count">1/1</span>
+            </div>
+            <div class="section-divider"></div>
+            <div class="item-row">
+              <div class="item-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="item-name">Pasta</div>
+              <div class="item-qty">Quantity 1</div>
+              <button class="item-actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SCENE 3: INPUT (8–12s) ===== -->
+      <div id="scene3-bg" class="clip" data-start="8" data-duration="4" data-track-index="14"></div>
+
+      <div id="scene3-content" class="clip flex-center" data-start="8" data-duration="4" data-track-index="15">
+        <div id="voice-card" class="input-card">
+          <div class="icon-row">
+            <div class="icon-circle mic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;">
+                <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
+              </svg>
+            </div>
+            <div class="card-label">Voice Input</div>
+          </div>
+          <div class="card-title">Hands-free entry</div>
+          <div class="card-detail">Say "3 apples" and it appears on your list.</div>
+          <div class="typed-text" id="typed-output"></div>
+        </div>
+
+        <div id="scan-card" class="input-card">
+          <div class="icon-row">
+            <div class="icon-circle camera">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <div class="card-label">Photo OCR</div>
+          </div>
+          <div class="card-title">Scan any list</div>
+          <div class="card-detail">Snap a photo of a handwritten list — items extract automatically.</div>
+        </div>
+      </div>
+
+      <div id="input-tagline" class="clip bottom-tagline" data-start="8" data-duration="4" data-track-index="16">
+        Type, speak, scan, or paste a recipe.
+      </div>
+
+      <!-- ===== SCENE 4: LEARNING (12–17s) ===== -->
+      <div id="scene4-bg" class="clip" data-start="12" data-duration="5" data-track-index="18"></div>
+
+      <div id="scene4-content" class="clip flex-center" data-start="12" data-duration="5" data-track-index="19">
+        <div id="learn-badges" class="badge-row">
+          <div class="learn-badge">Learn</div>
+          <div class="confidence-badge">92% confidence</div>
+        </div>
+        <div id="payoff-main" class="payoff-main">Learns your route.</div>
+        <div id="payoff-line2" class="payoff-main">Trip after trip.</div>
+        <div id="payoff-sub" class="payoff-sub">No setup. Just shop.</div>
+      </div>
+
+      <!-- ===== SCENE 5: OUTRO (17–20s) ===== -->
+      <div id="scene5-bg" class="clip" data-start="17" data-duration="3" data-track-index="20"></div>
+
+      <div id="scene5-content" class="clip flex-center" data-start="17" data-duration="3" data-track-index="21">
+        <div id="logo" class="logo-wordmark">Smart Grocery List</div>
+        <div id="accent-bar" class="accent-bar"></div>
+        <div id="tagline" class="tagline-final">The route knows itself.</div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // === SCENE 1: HOOK (0–3s) ===
+      tl.from("#hook-line1", { opacity: 0, y: 40, duration: 0.7, ease: "power3.out" }, 0.3);
+      tl.to("#hook-line1", { opacity: 0, y: -30, duration: 0.6, ease: "power2.in" }, 1.5);
+      tl.from("#hook-line2", { opacity: 0, y: 30, duration: 0.7, ease: "power3.out" }, 1.7);
+
+      // === SCENE 2: SMART LIST (3–8s) ===
+      tl.from("#list-title", { opacity: 0, duration: 0.4, ease: "power2.out" }, 3.2);
+      tl.from("#sec-produce", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 3.5);
+      tl.from("#sec-dairy", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 3.9);
+      tl.from("#sec-meat", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 4.3);
+      tl.from("#sec-pantry", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 4.7);
+
+      // Animate items within sections
+      tl.from("#sec-produce .item-row", { opacity: 0, y: 10, duration: 0.3, stagger: 0.08, ease: "power2.out" }, 3.6);
+      tl.from("#sec-dairy .item-row", { opacity: 0, y: 10, duration: 0.3, stagger: 0.08, ease: "power2.out" }, 4.0);
+      tl.from("#sec-meat .item-row", { opacity: 0, y: 10, duration: 0.3, stagger: 0.08, ease: "power2.out" }, 4.4);
+      tl.from("#sec-pantry .item-row", { opacity: 0, y: 10, duration: 0.3, stagger: 0.08, ease: "power2.out" }, 4.8);
+
+      // === SCENE 3: INPUT (8–12s) ===
+      tl.from("#voice-card", { opacity: 0, scale: 0.95, duration: 0.5, ease: "power2.out" }, 8.3);
+      tl.from("#scan-card", { opacity: 0, scale: 0.95, duration: 0.5, ease: "power2.out" }, 8.7);
+
+      // Typing "3 apples 🍎"
+      var typedStr = "3 apples \u{1F34E}";
+      for (var i = 0; i < typedStr.length; i++) {
+        (function(idx) {
+          tl.call(function() {
+            document.getElementById("typed-output").textContent = typedStr.substring(0, idx + 1);
+          }, null, 9.3 + (idx * 0.08));
+        })(i);
+      }
+
+      tl.from("#input-tagline", { opacity: 0, y: 20, duration: 0.5, ease: "power2.out" }, 9.9);
+
+      // === SCENE 4: LEARNING (12–17s) ===
+      tl.from("#payoff-main", { opacity: 0, y: 30, duration: 0.7, ease: "power3.out" }, 12.3);
+      tl.from("#payoff-line2", { opacity: 0, y: 30, duration: 0.7, ease: "power3.out" }, 12.8);
+      tl.from("#payoff-sub", { opacity: 0, duration: 0.5, ease: "power2.out" }, 13.3);
+      tl.from("#learn-badges", { opacity: 0, y: 16, duration: 0.5, ease: "power2.out" }, 13.7);
+
+      // === SCENE 5: OUTRO (17–20s) ===
+      tl.from("#logo", { opacity: 0, y: 30, duration: 0.7, ease: "power3.out" }, 17.2);
+      tl.from("#accent-bar", { opacity: 0, scaleX: 0, duration: 0.4, ease: "power2.out" }, 17.7);
+      tl.from("#tagline", { opacity: 0, duration: 0.5, ease: "power2.out" }, 18.0);
+
+      tl.to("#bg-music", { volume: 0, duration: 1.5, ease: "power1.in" }, 18.5);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+Your grocery store has a layout. Now your list does too.
+
+Smart Grocery List learns your shopping route trip after trip — no setup, no configuration. Type, speak, scan, or paste a recipe, and the list organizes itself by your store's actual layout.
+
+The route knows itself.
+
+#SmartGroceryList #PWA #MachineLearning

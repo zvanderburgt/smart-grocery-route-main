@@ -1,0 +1,19 @@
+Grocery List
+
+Milk
+Bread
+Eggs
+Butter
+Cheese
+Apples
+Bananas
+Chicken
+Rice
+Pasta
+
+---
+Expected OCR Result:
+["Milk", "Bread", "Eggs", "Butter", "Cheese", "Apples", "Bananas", "Chicken", "Rice", "Pasta"]
+
+Expected Item Count: 10
+All Quantities: 1 (default)

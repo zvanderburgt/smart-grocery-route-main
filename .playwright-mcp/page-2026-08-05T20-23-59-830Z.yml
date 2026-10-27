@@ -1,0 +1,20 @@
+- generic [ref=f18e2]:
+  - generic [ref=f18e3]:
+    - region "Notifications alt+T"
+    - generic [ref=f18e7]:
+      - generic [ref=f18e8]:
+        - heading "Smart Grocery List" [level=1] [ref=f18e9]
+        - generic [ref=f18e10]:
+          - generic "Preparing offline • OCR ready" [ref=f18e12]: Preparing tools
+          - generic "Google Sheets sync" [ref=f18e14]: Offline
+      - button "Settings and utilities" [ref=f18e16]
+    - generic [ref=f18e20]:
+      - textbox "Add Grocery" [ref=f18e21]
+      - button "Start voice input" [ref=f18e22]
+      - button "Open tools" [ref=f18e23]
+      - button "Add item" [ref=f18e24]
+  - generic [ref=f18e26]:
+    - generic [ref=f18e27]: 🛒
+    - heading "Your list is empty" [level=2] [ref=f18e28]
+    - paragraph [ref=f18e29]: Add items manually, use voice input, or use the camera to scan a list. The app will learn your store layout as you shop!
+    - button "How does learning work?" [ref=f18e30]

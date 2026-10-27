@@ -1,0 +1,28 @@
+List (Messy/Challenging)
+
+Milk
+Bread
+Eggs
+Butter
+Cheese
+Apples
+Bananas
+Chicken
+Rice
+
+---
+Expected OCR Result (may vary due to noise):
+["Milk", "Bread", "Eggs", "Butter", "Cheese", "Apples", "Bananas", "Chicken", "Rice"]
+
+Expected Item Count: 9 (ideally)
+Acceptable Item Count: 6-9 (some items may be hard to read)
+All Quantities: 1 (default)
+
+Notes:
+- Reduced opacity (60-90%)
+- Random rotation on each line
+- Added noise/grain to simulate poor quality
+- Random position offsets
+- Simulates poor lighting or camera quality
+- It's acceptable if OCR misses 1-3 items on this test
+- Use this to test OCR robustness, not accuracy baseline

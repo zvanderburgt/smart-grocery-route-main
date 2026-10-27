@@ -1,0 +1,652 @@
+[
+  {
+    "tag": "div",
+    "className": "bg-background pb-0",
+    "text": "Added PastaAdded 2 Chicken breastSmart Grocery ListPreparing tools7 items left0% complete"
+  },
+  {
+    "tag": "div",
+    "className": "sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]",
+    "text": "Smart Grocery ListPreparing tools7 items left0% complete"
+  },
+  {
+    "tag": "div",
+    "className": "w-full mx-auto px-4 sm:px-5 py-2 coarse:py-3 space-y-3 coarse:space-y-2",
+    "text": "Smart Grocery ListPreparing tools7 items left0% complete"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center justify-between",
+    "text": "Smart Grocery ListPreparing tools"
+  },
+  {
+    "tag": "div",
+    "className": "space-y-1",
+    "text": "Smart Grocery ListPreparing tools"
+  },
+  {
+    "tag": "h1",
+    "className": "text-2xl font-bold tracking-tight",
+    "text": "Smart Grocery List"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-2",
+    "text": "Preparing tools"
+  },
+  {
+    "tag": "span",
+    "className": "inline-flex items-center justify-center border w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden [a&]:hover:bg-accent [a&]:hover:text-accent-foreground gap-2 rounded-full px-2.5 py-1 text-xs font-semibold border-accent/20 bg-accent/10 text-foreground",
+    "text": "Preparing tools"
+  },
+  {
+    "tag": "span",
+    "className": "h-2 w-2 rounded-full bg-current",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-1 coarse:gap-2",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 size-9 h-9 w-9 coarse:h-10 coarse:w-10",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "space-y-1.5 coarse:space-y-1",
+    "text": "7 items left0% complete"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center justify-between text-xs",
+    "text": "7 items left0% complete"
+  },
+  {
+    "tag": "span",
+    "className": "text-muted-foreground font-medium",
+    "text": "7 items left"
+  },
+  {
+    "tag": "span",
+    "className": "text-muted-foreground font-medium",
+    "text": "0% complete"
+  },
+  {
+    "tag": "div",
+    "className": "bg-primary/20 relative w-full overflow-hidden rounded-full h-2",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "bg-primary h-full w-full flex-1 transition-all",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "w-full mx-auto px-4 sm:px-5 py-1 coarse:py-0 space-y-1 coarse:space-y-0.5",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "relative overflow-hidden rounded-[1.35rem] border border-transparent bg-card/80 p-2 shadow-xs backdrop-blur-sm",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "relative flex items-center gap-2",
+    "text": ""
+  },
+  {
+    "tag": "input",
+    "className": "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex w-full rounded-md border py-1 transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex-1 min-w-0 h-12 border-transparent bg-transparent px-2 text-sm font-medium tracking-wide shadow-none focus-visible:border-transparent focus-visible:ring-0 coarse:h-14 coarse:text-lg",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 rounded-full text-muted-foreground hover:text-foreground",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 rounded-full text-muted-foreground hover:text-foreground",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive text-primary-foreground shadow-xs size-9 h-10 w-10 rounded-full bg-primary hover:bg-primary/90",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "w-full mx-auto px-4 sm:px-5 pt-0 pb-3 coarse:pb-2 space-y-1 coarse:space-y-0.5",
+    "text": "Produce3/3AvocadosQuantity 2BananasQuantity 4SpinachQuantity 1Meat & Poultry1/1Chicken BreastQuantit"
+  },
+  {
+    "tag": "div",
+    "className": "space-y-1 coarse:space-y-0.5",
+    "text": "Produce3/3AvocadosQuantity 2BananasQuantity 4SpinachQuantity 1Meat & Poultry1/1Chicken BreastQuantit"
+  },
+  {
+    "tag": "ul",
+    "className": "space-y-1 coarse:space-y-0.5",
+    "text": "Produce3/3AvocadosQuantity 2BananasQuantity 4SpinachQuantity 1Meat & Poultry1/1Chicken BreastQuantit"
+  },
+  {
+    "tag": "li",
+    "className": "list-none",
+    "text": "Produce3/3AvocadosQuantity 2BananasQuantity 4SpinachQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "text-card-foreground flex flex-col gap-2 rounded-xl border py-3 shadow-sm border-border/50 bg-card/50 group overflow-hidden",
+    "text": "Produce3/3AvocadosQuantity 2BananasQuantity 4SpinachQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 pb-2",
+    "text": "Produce3/3"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-2 min-w-0",
+    "text": "Produce3/3"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:text-accent-foreground dark:hover:bg-accent/50 size-9 h-7 w-7 shrink-0 hover:bg-muted/50",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/15",
+    "text": ""
+  },
+  {
+    "tag": "h2",
+    "className": "flex-1 min-w-0 text-sm font-bold uppercase tracking-wide text-foreground truncate",
+    "text": "Produce"
+  },
+  {
+    "tag": "span",
+    "className": "inline-flex items-center justify-center rounded-md border px-2 py-0.5 w-fit whitespace-nowrap [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 shrink-0 text-xs font-medium tabular-nums",
+    "text": "3/3"
+  },
+  {
+    "tag": "div",
+    "className": "bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px mt-1.5",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "px-3 space-y-1.5 pt-0 pb-1.5",
+    "text": "AvocadosQuantity 2BananasQuantity 4SpinachQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border hover:border-primary/30 transition-colors group",
+    "text": "AvocadosQuantity 2"
+  },
+  {
+    "tag": "button",
+    "className": "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 w-7 shrink-0 mt-0.5 sm:mt-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0",
+    "text": "AvocadosQuantity 2"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-2",
+    "text": "AvocadosQuantity 2"
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0 space-y-1",
+    "text": "AvocadosQuantity 2"
+  },
+  {
+    "tag": "label",
+    "className": "block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug",
+    "text": "Avocados"
+  },
+  {
+    "tag": "p",
+    "className": "text-xs text-muted-foreground",
+    "text": "Quantity 2"
+  },
+  {
+    "tag": "span",
+    "className": "font-semibold tabular-nums",
+    "text": "2"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 text-muted-foreground hover:text-foreground shrink-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border hover:border-primary/30 transition-colors group",
+    "text": "BananasQuantity 4"
+  },
+  {
+    "tag": "button",
+    "className": "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 w-7 shrink-0 mt-0.5 sm:mt-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0",
+    "text": "BananasQuantity 4"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-2",
+    "text": "BananasQuantity 4"
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0 space-y-1",
+    "text": "BananasQuantity 4"
+  },
+  {
+    "tag": "label",
+    "className": "block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug",
+    "text": "Bananas"
+  },
+  {
+    "tag": "p",
+    "className": "text-xs text-muted-foreground",
+    "text": "Quantity 4"
+  },
+  {
+    "tag": "span",
+    "className": "font-semibold tabular-nums",
+    "text": "4"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 text-muted-foreground hover:text-foreground shrink-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border hover:border-primary/30 transition-colors group",
+    "text": "SpinachQuantity 1"
+  },
+  {
+    "tag": "button",
+    "className": "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 w-7 shrink-0 mt-0.5 sm:mt-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0",
+    "text": "SpinachQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-2",
+    "text": "SpinachQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0 space-y-1",
+    "text": "SpinachQuantity 1"
+  },
+  {
+    "tag": "label",
+    "className": "block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug",
+    "text": "Spinach"
+  },
+  {
+    "tag": "p",
+    "className": "text-xs text-muted-foreground",
+    "text": "Quantity 1"
+  },
+  {
+    "tag": "span",
+    "className": "font-semibold tabular-nums",
+    "text": "1"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 text-muted-foreground hover:text-foreground shrink-0",
+    "text": ""
+  },
+  {
+    "tag": "li",
+    "className": "list-none",
+    "text": "Meat & Poultry1/1Chicken BreastQuantity 2"
+  },
+  {
+    "tag": "div",
+    "className": "text-card-foreground flex flex-col gap-2 rounded-xl border py-3 shadow-sm border-border/50 bg-card/50 group overflow-hidden",
+    "text": "Meat & Poultry1/1Chicken BreastQuantity 2"
+  },
+  {
+    "tag": "div",
+    "className": "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 pb-2",
+    "text": "Meat & Poultry1/1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-2 min-w-0",
+    "text": "Meat & Poultry1/1"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:text-accent-foreground dark:hover:bg-accent/50 size-9 h-7 w-7 shrink-0 hover:bg-muted/50",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/15",
+    "text": ""
+  },
+  {
+    "tag": "h2",
+    "className": "flex-1 min-w-0 text-sm font-bold uppercase tracking-wide text-foreground truncate",
+    "text": "Meat & Poultry"
+  },
+  {
+    "tag": "span",
+    "className": "inline-flex items-center justify-center rounded-md border px-2 py-0.5 w-fit whitespace-nowrap [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 shrink-0 text-xs font-medium tabular-nums",
+    "text": "1/1"
+  },
+  {
+    "tag": "div",
+    "className": "bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px mt-1.5",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "px-3 space-y-1.5 pt-0 pb-1.5",
+    "text": "Chicken BreastQuantity 2"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border hover:border-primary/30 transition-colors group",
+    "text": "Chicken BreastQuantity 2"
+  },
+  {
+    "tag": "button",
+    "className": "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 w-7 shrink-0 mt-0.5 sm:mt-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0",
+    "text": "Chicken BreastQuantity 2"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-2",
+    "text": "Chicken BreastQuantity 2"
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0 space-y-1",
+    "text": "Chicken BreastQuantity 2"
+  },
+  {
+    "tag": "label",
+    "className": "block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug",
+    "text": "Chicken Breast"
+  },
+  {
+    "tag": "p",
+    "className": "text-xs text-muted-foreground",
+    "text": "Quantity 2"
+  },
+  {
+    "tag": "span",
+    "className": "font-semibold tabular-nums",
+    "text": "2"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 text-muted-foreground hover:text-foreground shrink-0",
+    "text": ""
+  },
+  {
+    "tag": "li",
+    "className": "list-none",
+    "text": "Dairy & Eggs2/2EggsQuantity 12MilkQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "text-card-foreground flex flex-col gap-2 rounded-xl border py-3 shadow-sm border-border/50 bg-card/50 group overflow-hidden",
+    "text": "Dairy & Eggs2/2EggsQuantity 12MilkQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 pb-2",
+    "text": "Dairy & Eggs2/2"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-2 min-w-0",
+    "text": "Dairy & Eggs2/2"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:text-accent-foreground dark:hover:bg-accent/50 size-9 h-7 w-7 shrink-0 hover:bg-muted/50",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/15",
+    "text": ""
+  },
+  {
+    "tag": "h2",
+    "className": "flex-1 min-w-0 text-sm font-bold uppercase tracking-wide text-foreground truncate",
+    "text": "Dairy & Eggs"
+  },
+  {
+    "tag": "span",
+    "className": "inline-flex items-center justify-center rounded-md border px-2 py-0.5 w-fit whitespace-nowrap [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 shrink-0 text-xs font-medium tabular-nums",
+    "text": "2/2"
+  },
+  {
+    "tag": "div",
+    "className": "bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px mt-1.5",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "px-3 space-y-1.5 pt-0 pb-1.5",
+    "text": "EggsQuantity 12MilkQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border hover:border-primary/30 transition-colors group",
+    "text": "EggsQuantity 12"
+  },
+  {
+    "tag": "button",
+    "className": "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 w-7 shrink-0 mt-0.5 sm:mt-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0",
+    "text": "EggsQuantity 12"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-2",
+    "text": "EggsQuantity 12"
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0 space-y-1",
+    "text": "EggsQuantity 12"
+  },
+  {
+    "tag": "label",
+    "className": "block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug",
+    "text": "Eggs"
+  },
+  {
+    "tag": "p",
+    "className": "text-xs text-muted-foreground",
+    "text": "Quantity 12"
+  },
+  {
+    "tag": "span",
+    "className": "font-semibold tabular-nums",
+    "text": "12"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 text-muted-foreground hover:text-foreground shrink-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border hover:border-primary/30 transition-colors group",
+    "text": "MilkQuantity 1"
+  },
+  {
+    "tag": "button",
+    "className": "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 w-7 shrink-0 mt-0.5 sm:mt-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0",
+    "text": "MilkQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-2",
+    "text": "MilkQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0 space-y-1",
+    "text": "MilkQuantity 1"
+  },
+  {
+    "tag": "label",
+    "className": "block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug",
+    "text": "Milk"
+  },
+  {
+    "tag": "p",
+    "className": "text-xs text-muted-foreground",
+    "text": "Quantity 1"
+  },
+  {
+    "tag": "span",
+    "className": "font-semibold tabular-nums",
+    "text": "1"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 text-muted-foreground hover:text-foreground shrink-0",
+    "text": ""
+  },
+  {
+    "tag": "li",
+    "className": "list-none",
+    "text": "Pantry & Dry Goods1/1PastaQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "text-card-foreground flex flex-col gap-2 rounded-xl border py-3 shadow-sm border-border/50 bg-card/50 group overflow-hidden",
+    "text": "Pantry & Dry Goods1/1PastaQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6 pb-2",
+    "text": "Pantry & Dry Goods1/1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-2 min-w-0",
+    "text": "Pantry & Dry Goods1/1"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:text-accent-foreground dark:hover:bg-accent/50 size-9 h-7 w-7 shrink-0 hover:bg-muted/50",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/15",
+    "text": ""
+  },
+  {
+    "tag": "h2",
+    "className": "flex-1 min-w-0 text-sm font-bold uppercase tracking-wide text-foreground truncate",
+    "text": "Pantry & Dry Goods"
+  },
+  {
+    "tag": "span",
+    "className": "inline-flex items-center justify-center rounded-md border px-2 py-0.5 w-fit whitespace-nowrap [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 shrink-0 text-xs font-medium tabular-nums",
+    "text": "1/1"
+  },
+  {
+    "tag": "div",
+    "className": "bg-border shrink-0 data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px mt-1.5",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "px-3 space-y-1.5 pt-0 pb-1.5",
+    "text": "PastaQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border hover:border-primary/30 transition-colors group",
+    "text": "PastaQuantity 1"
+  },
+  {
+    "tag": "button",
+    "className": "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-7 w-7 shrink-0 mt-0.5 sm:mt-0",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0",
+    "text": "PastaQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-start gap-2",
+    "text": "PastaQuantity 1"
+  },
+  {
+    "tag": "div",
+    "className": "flex-1 min-w-0 space-y-1",
+    "text": "PastaQuantity 1"
+  },
+  {
+    "tag": "label",
+    "className": "block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug",
+    "text": "Pasta"
+  },
+  {
+    "tag": "p",
+    "className": "text-xs text-muted-foreground",
+    "text": "Quantity 1"
+  },
+  {
+    "tag": "span",
+    "className": "font-semibold tabular-nums",
+    "text": "1"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 text-muted-foreground hover:text-foreground shrink-0",
+    "text": ""
+  }
+]

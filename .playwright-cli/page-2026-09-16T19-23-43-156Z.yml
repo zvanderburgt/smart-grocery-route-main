@@ -1,0 +1,221 @@
+- generic:
+  - generic:
+    - generic:
+      - region "Notifications alt+T":
+        - list:
+          - listitem:
+            - generic:
+              - img
+            - generic:
+              - generic: Cloud OCR enabled!
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Smart Grocery List
+                - generic:
+                  - generic:
+                    - generic: Preparing tools
+                  - generic:
+                    - img
+                    - text: Offline
+              - generic:
+                - button:
+                  - img
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - textbox:
+                - /placeholder: Add Grocery
+              - button:
+                - img
+              - button:
+                - img
+              - button:
+                - img
+    - generic:
+      - generic:
+        - generic: 🛒
+        - heading [level=2]: Your list is empty
+        - paragraph: Add items manually, use voice input, or use the camera to scan a list. The app will learn your store layout as you shop!
+        - button:
+          - img
+          - text: How does learning work?
+  - dialog "Settings" [ref=e79]:
+    - generic [ref=e80]:
+      - heading "Settings" [level=2] [ref=e81]:
+        - img [ref=e82]
+        - generic [ref=e84]: Settings
+      - paragraph [ref=e85]: Preferences, PWA health, and diagnostics
+    - generic [ref=e86]:
+      - generic [ref=e87]:
+        - heading "Quick Actions" [level=3] [ref=e88]
+        - generic [ref=e89]:
+          - button "Favorites 0 saved" [ref=e90]:
+            - img
+            - generic [ref=e91]:
+              - generic [ref=e92]: Favorites
+              - generic [ref=e93]: 0 saved
+          - button "Training 0 brands" [ref=e94]:
+            - img
+            - generic [ref=e95]:
+              - generic [ref=e96]: Training
+              - generic [ref=e97]: 0 brands
+          - button "Statistics View stats" [ref=e98]:
+            - img
+            - generic [ref=e99]:
+              - generic [ref=e100]: Statistics
+              - generic [ref=e101]: View stats
+          - button "Learning How it works" [ref=e102]:
+            - img
+            - generic [ref=e103]:
+              - generic [ref=e104]: Learning
+              - generic [ref=e105]: How it works
+      - generic [ref=e106]:
+        - heading "Preferences" [level=3] [ref=e107]
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - generic [ref=e110] [cursor=pointer]:
+              - generic [ref=e111]: Smart Suggestions
+              - generic [ref=e112]: Show item suggestions as you shop
+            - switch "Smart Suggestions Show item suggestions as you shop" [checked] [ref=e113]
+          - generic [ref=e114]:
+            - generic [ref=e115] [cursor=pointer]:
+              - generic [ref=e116]: Confidence Indicators
+              - generic [ref=e117]: Show category prediction confidence
+            - switch "Confidence Indicators Show category prediction confidence" [checked] [ref=e118]
+      - generic [ref=e119]:
+        - heading "OCR Settings" [level=3] [ref=e120]
+        - generic [ref=e122]:
+          - img [ref=e123]
+          - generic [ref=e126]:
+            - generic [ref=e128]:
+              - img
+              - text: Cloud OCR
+            - generic [ref=e129]: MiniMax M3 via OpenRouter
+            - generic [ref=e130]: Add an API key below to enable OCR
+            - generic [ref=e131]:
+              - generic [ref=e132]: ✓ Best accuracy
+              - generic [ref=e133]: ✓ No download
+              - generic [ref=e134]: ✗ Needs internet
+      - generic [ref=e135]:
+        - heading "OpenRouter API Key" [level=3] [ref=e136]
+        - generic [ref=e137]:
+          - generic [ref=e139]:
+            - textbox "sk-or-v1-..." [ref=e140]: sk-or-v1-abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef
+            - button "Show" [ref=e141]
+          - generic [ref=e142]:
+            - button "Enable Cloud OCR" [active] [ref=e227]
+            - button "How to Get Key" [ref=e143]:
+              - img
+              - text: How to Get Key
+          - generic [ref=e144]:
+            - generic [ref=e145]: Cloud Model
+            - textbox "Cloud Model" [ref=e146]:
+              - /placeholder: minimax/minimax-m3:free
+              - text: minimax/minimax-m3:free
+            - paragraph [ref=e147]:
+              - text: "Enter the model ID from OpenRouter. Example:"
+              - code [ref=e148]: minimax/minimax-m3:free
+          - paragraph [ref=e149]:
+            - text: Get a free key at
+            - link "openrouter.ai/keys" [ref=e150] [cursor=pointer]:
+              - /url: https://openrouter.ai/keys
+      - generic [ref=e151]:
+        - heading "Data Management" [level=3] [ref=e152]
+        - paragraph [ref=e153]: The app learns your shopping habits over time. You can reset this learning data without clearing your list.
+        - button "Clear Learning Data" [disabled]:
+          - img
+          - generic: Clear Learning Data
+      - generic [ref=e154]:
+        - heading "Service Worker" [level=3] [ref=e155]
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - generic [ref=e158]: Registered
+            - generic [ref=e159]: "No"
+          - generic [ref=e160]:
+            - generic [ref=e161]: Active
+            - generic [ref=e162]: "No"
+          - generic [ref=e163]:
+            - generic [ref=e164]: Controlling
+            - generic [ref=e165]: "No"
+      - generic [ref=e166]:
+        - heading "Storage Quota" [level=3] [ref=e167]
+        - generic [ref=e168]:
+          - generic [ref=e169]:
+            - generic [ref=e170]: Used
+            - generic [ref=e171]: 2.39 MB
+          - progressbar [ref=e172]
+          - generic [ref=e174]:
+            - generic [ref=e175]: 0%
+            - generic [ref=e176]: 2 GB
+      - generic [ref=e177]:
+        - heading "Cache Storage" [level=3] [ref=e178]
+        - generic [ref=e228]:
+          - generic [ref=e229]:
+            - generic [ref=e230]: transformers-cache
+            - generic [ref=e231]: 2.39 MB
+          - generic [ref=e232]:
+            - generic [ref=e233]: Total
+            - generic [ref=e234]: 2.39 MB
+      - generic [ref=e182]:
+        - heading "Google Sheets Sync" [level=3] [ref=e183]:
+          - img [ref=e184]
+          - text: Google Sheets Sync
+        - generic [ref=e186]:
+          - generic [ref=e187]:
+            - heading "Connection Status" [level=3] [ref=e188]
+            - generic [ref=e189]:
+              - generic [ref=e190]:
+                - img
+                - text: Disconnected
+              - generic [ref=e191]: Not connected to Google Sheets
+          - generic [ref=e192]:
+            - heading "Google Account" [level=3] [ref=e193]
+            - generic [ref=e194]:
+              - generic [ref=e195]:
+                - img [ref=e196]
+                - generic [ref=e199]: Not connected
+              - button "Connect" [disabled]:
+                - img
+                - generic: Connect
+          - generic [ref=e200]:
+            - heading "Spreadsheet ID" [level=3] [ref=e201]
+            - generic [ref=e202]:
+              - generic [ref=e203]:
+                - textbox "Google Sheet ID" [ref=e204]:
+                  - /placeholder: Enter Sheet ID from URL
+                - button "Save" [disabled]:
+                  - img
+                  - generic: Save
+              - paragraph [ref=e205]:
+                - text: "Found in the URL:"
+                - code [ref=e206]: "docs.google.com/spreadsheets/d/{SHEET_ID}/edit"
+          - generic [ref=e207]:
+            - heading "Sync Controls" [level=3] [ref=e208]
+            - generic [ref=e209]:
+              - button "Sync Now" [disabled]:
+                - img
+                - generic: Sync Now
+              - generic [ref=e210]:
+                - generic [ref=e211]: Last sync
+                - generic [ref=e212]: Never
+          - generic [ref=e213]:
+            - heading "Setup Instructions" [level=3] [ref=e214]:
+              - img [ref=e215]
+              - text: Setup Instructions
+            - button "Click to expand setup guide" [ref=e217]:
+              - generic [ref=e218]: Click to expand setup guide
+              - img
+      - generic [ref=e219]:
+        - button "Export Diagnostics" [ref=e220]:
+          - img
+          - generic [ref=e221]: Export Diagnostics
+        - button "Clear All Caches" [ref=e235]:
+          - img
+          - generic [ref=e236]: Clear All Caches
+    - button "Close" [ref=e222]:
+      - img [ref=e223]
+      - generic [ref=e226]: Close

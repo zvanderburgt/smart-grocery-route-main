@@ -1,0 +1,25 @@
+Grocery List (Handwritten Style)
+
+Milk
+Bread
+Eggs
+Butter
+Cheese
+Apples
+Chicken breast
+Ground beef
+Lettuce
+Tomatoes
+
+---
+Expected OCR Result:
+["Milk", "Bread", "Eggs", "Butter", "Cheese", "Apples", "Chicken breast", "Ground beef", "Lettuce", "Tomatoes"]
+
+Expected Item Count: 10
+All Quantities: 1 (default)
+
+Notes:
+- Text appears handwritten with slight rotations
+- Letter spacing varies
+- Each line has slight position offset
+- Should still be readable by OCR

@@ -1,0 +1,153 @@
+- generic:
+  - generic:
+    - generic:
+      - region "Notifications alt+T"
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - heading [level=1]: Smart Grocery List
+                - generic:
+                  - generic: Preparing tools
+                  - generic: Syncing…
+              - generic:
+                - button
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - textbox:
+                - /placeholder: Add Grocery
+              - button
+              - button
+              - button
+    - generic:
+      - generic:
+        - generic: 🛒
+        - heading [level=2]: Your list is empty
+        - paragraph: Add items manually, use voice input, or use the camera to scan a list. The app will learn your store layout as you shop!
+        - button: How does learning work?
+  - dialog [active] [ref=f5e32]:
+    - generic [ref=f5e33]:
+      - heading "Settings" [level=2] [ref=f5e34]
+      - paragraph [ref=f5e38]: Preferences, PWA health, and diagnostics
+    - generic [ref=f5e39]:
+      - generic [ref=f5e40]:
+        - heading "Quick Actions" [level=3] [ref=f5e41]
+        - generic [ref=f5e42]:
+          - button "Favorites 0 saved" [ref=f5e43]:
+            - generic [ref=f5e44]:
+              - generic [ref=f5e45]: Favorites
+              - generic [ref=f5e46]: 0 saved
+          - button "Training 0 brands" [ref=f5e47]:
+            - generic [ref=f5e48]:
+              - generic [ref=f5e49]: Training
+              - generic [ref=f5e50]: 0 brands
+          - button "Statistics View stats" [ref=f5e51]:
+            - generic [ref=f5e52]:
+              - generic [ref=f5e53]: Statistics
+              - generic [ref=f5e54]: View stats
+          - button "Learning How it works" [ref=f5e55]:
+            - generic [ref=f5e56]:
+              - generic [ref=f5e57]: Learning
+              - generic [ref=f5e58]: How it works
+      - generic [ref=f5e59]:
+        - heading "Preferences" [level=3] [ref=f5e60]
+        - generic [ref=f5e61]:
+          - generic [ref=f5e62]:
+            - generic [ref=f5e63] [cursor=pointer]:
+              - generic [ref=f5e64]: Smart Suggestions
+              - generic [ref=f5e65]: Show item suggestions as you shop
+            - switch "Smart Suggestions Show item suggestions as you shop" [checked] [ref=f5e66]
+          - generic [ref=f5e67]:
+            - generic [ref=f5e68] [cursor=pointer]:
+              - generic [ref=f5e69]: Confidence Indicators
+              - generic [ref=f5e70]: Show category prediction confidence
+            - switch "Confidence Indicators Show category prediction confidence" [checked] [ref=f5e71]
+      - generic [ref=f5e72]:
+        - heading "Data Management" [level=3] [ref=f5e73]
+        - paragraph [ref=f5e74]: The app learns your shopping habits over time. You can reset this learning data without clearing your list.
+        - button "Clear Learning Data" [disabled]
+      - generic [ref=f5e75]:
+        - heading "Service Worker" [level=3] [ref=f5e76]
+        - generic [ref=f5e77]:
+          - generic [ref=f5e78]:
+            - generic [ref=f5e79]: Registered
+            - generic [ref=f5e80]: "No"
+          - generic [ref=f5e81]:
+            - generic [ref=f5e82]: Active
+            - generic [ref=f5e83]: "No"
+          - generic [ref=f5e84]:
+            - generic [ref=f5e85]: Controlling
+            - generic [ref=f5e86]: "No"
+      - generic [ref=f5e87]:
+        - heading "Storage Quota" [level=3] [ref=f5e88]
+        - generic [ref=f5e89]:
+          - generic [ref=f5e90]:
+            - generic [ref=f5e91]: Used
+            - generic [ref=f5e92]: 277.62 MB
+          - progressbar [ref=f5e93]
+          - generic [ref=f5e95]:
+            - generic [ref=f5e96]: 3%
+            - generic [ref=f5e97]: 10.27 GB
+      - generic [ref=f5e98]:
+        - heading "Cache Storage" [level=3] [ref=f5e99]
+        - generic [ref=f5e100]:
+          - generic [ref=f5e101]:
+            - generic [ref=f5e102]: transformers-cache
+            - generic [ref=f5e103]: 277.6 MB
+          - generic [ref=f5e104]:
+            - generic [ref=f5e105]: Total
+            - generic [ref=f5e106]: 277.6 MB
+      - generic [ref=f5e107]:
+        - heading "OCR Model Prefetch" [level=3] [ref=f5e108]
+        - generic [ref=f5e109]:
+          - generic [ref=f5e110]:
+            - generic [ref=f5e111]: Status
+            - generic [ref=f5e112]: completed
+          - generic [ref=f5e113]:
+            - generic [ref=f5e114]: Last Attempt
+            - generic [ref=f5e115]: 36m ago
+          - generic [ref=f5e116]:
+            - generic [ref=f5e117]: Last Success
+            - generic [ref=f5e118]: 36m ago
+      - generic [ref=f5e119]:
+        - heading "Google Sheets Sync" [level=3] [ref=f5e120]
+        - generic [ref=f5e123]:
+          - generic [ref=f5e124]:
+            - heading "Connection Status" [level=3] [ref=f5e125]
+            - generic [ref=f5e126]:
+              - generic [ref=f5e127]: Connecting…
+              - generic [ref=f5e128]: Connecting…
+          - generic [ref=f5e129]:
+            - heading "Google Account" [level=3] [ref=f5e130]
+            - generic [ref=f5e131]:
+              - generic [ref=f5e132]: Not connected
+              - button "Disconnect" [disabled]
+          - generic [ref=f5e139]:
+            - heading "Spreadsheet ID" [level=3] [ref=f5e140]
+            - generic [ref=f5e141]:
+              - generic [ref=f5e142]:
+                - textbox "Google Sheet ID" [ref=f5e143]:
+                  - /placeholder: Enter Sheet ID from URL
+                  - text: 1ZG8qUf1e-A9gRoemQBSNfoPxmail1J6J8VOg6YxVfNo
+                - button "Save" [ref=f5e144]
+              - paragraph [ref=f5e146]:
+                - text: "Found in the URL:"
+                - code [ref=f5e147]: "docs.google.com/spreadsheets/d/{SHEET_ID}/edit"
+          - generic [ref=f5e148]:
+            - heading "Sync Controls" [level=3] [ref=f5e149]
+            - generic [ref=f5e150]:
+              - button "Syncing…" [disabled]
+              - generic [ref=f5e151]:
+                - generic [ref=f5e152]: Last sync
+                - generic [ref=f5e153]: Never
+          - generic [ref=f5e154]:
+            - heading "Setup Instructions" [level=3] [ref=f5e155]
+            - button "Click to expand setup guide" [ref=f5e158]
+      - generic [ref=f5e160]:
+        - button "Retry OCR" [ref=f5e161]
+        - button "Export" [ref=f5e163]
+        - button "Clear Cache" [ref=f5e165]
+    - button "Close" [ref=f5e167]

@@ -1,0 +1,122 @@
+[
+  {
+    "tag": "div",
+    "className": "bg-background pb-0",
+    "text": "Smart Grocery ListPreparing tools"
+  },
+  {
+    "tag": "div",
+    "className": "sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]",
+    "text": "Smart Grocery ListPreparing tools"
+  },
+  {
+    "tag": "div",
+    "className": "w-full mx-auto px-4 sm:px-5 py-2 coarse:py-3 space-y-3 coarse:space-y-2",
+    "text": "Smart Grocery ListPreparing tools"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center justify-between",
+    "text": "Smart Grocery ListPreparing tools"
+  },
+  {
+    "tag": "div",
+    "className": "space-y-1",
+    "text": "Smart Grocery ListPreparing tools"
+  },
+  {
+    "tag": "h1",
+    "className": "text-2xl font-bold tracking-tight",
+    "text": "Smart Grocery List"
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-2",
+    "text": "Preparing tools"
+  },
+  {
+    "tag": "span",
+    "className": "inline-flex items-center justify-center border w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden [a&]:hover:bg-accent [a&]:hover:text-accent-foreground gap-2 rounded-full px-2.5 py-1 text-xs font-semibold border-accent/20 bg-accent/10 text-foreground",
+    "text": "Preparing tools"
+  },
+  {
+    "tag": "span",
+    "className": "h-2 w-2 rounded-full bg-current",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "flex items-center gap-1 coarse:gap-2",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 size-9 h-9 w-9 coarse:h-10 coarse:w-10",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "w-full mx-auto px-4 sm:px-5 py-1 coarse:py-0 space-y-1 coarse:space-y-0.5",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "relative overflow-hidden rounded-[1.35rem] border border-transparent bg-card/80 p-2 shadow-xs backdrop-blur-sm",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "relative flex items-center gap-2",
+    "text": ""
+  },
+  {
+    "tag": "input",
+    "className": "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 flex w-full rounded-md border py-1 transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex-1 min-w-0 h-12 border-transparent bg-transparent px-2 text-sm font-medium tracking-wide shadow-none focus-visible:border-transparent focus-visible:ring-0 coarse:h-14 coarse:text-lg",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 rounded-full text-muted-foreground hover:text-foreground",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-accent dark:hover:bg-accent/50 size-9 h-10 w-10 rounded-full text-muted-foreground hover:text-foreground",
+    "text": ""
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive text-primary-foreground shadow-xs size-9 h-10 w-10 rounded-full bg-primary hover:bg-primary/90",
+    "text": ""
+  },
+  {
+    "tag": "div",
+    "className": "w-full mx-auto px-4 sm:px-5 pt-0 pb-3 coarse:pb-2 space-y-1 coarse:space-y-0.5",
+    "text": "🛒Your list is emptyAdd items manually, use voice "
+  },
+  {
+    "tag": "div",
+    "className": "text-center py-12 coarse:py-6 space-y-3 coarse:space-y-2",
+    "text": "🛒Your list is emptyAdd items manually, use voice "
+  },
+  {
+    "tag": "div",
+    "className": "text-6xl coarse:text-5xl",
+    "text": "🛒"
+  },
+  {
+    "tag": "h2",
+    "className": "text-lg coarse:text-base font-semibold text-foreground",
+    "text": "Your list is empty"
+  },
+  {
+    "tag": "p",
+    "className": "text-sm coarse:text-xs text-muted-foreground max-w-sm mx-auto",
+    "text": "Add items manually, use voice input, or use the ca"
+  },
+  {
+    "tag": "button",
+    "className": "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 mx-auto gap-2",
+    "text": "How does learning work?"
+  }
+]

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <defs>
+        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#6bcf83"/>
+            <stop offset="100%" stop-color="#3d9155"/>
+        </linearGradient>
+        <linearGradient id="eggShade" x1="30%" y1="10%" x2="70%" y2="90%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#f0faf2"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Background rounded square -->
+    <rect width="512" height="512" rx="108" fill="url(#bgGrad)"/>
+
+    <!-- Egg shape: narrow/pointed top, wide round bottom -->
+    <!-- Top (256,62) → right widest ~(402,308) → bottom (256,450) → left widest ~(110,308) → top -->
+    <path d="M 256 62
+           C 316 62, 402 168, 402 308
+           C 402 400, 338 450, 256 450
+           C 174 450, 110 400, 110 308
+           C 110 168, 196 62, 256 62
+           Z" fill="url(#eggShade)" stroke="white" stroke-width="5"/>
+
+    <!-- List item 1 — checked (solid green circle + checkmark) -->
+    <circle cx="200" cy="200" r="18" fill="#4ca567"/>
+    <polyline points="191,200 198,209 213,190" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="229" y="191" width="110" height="17" rx="8.5" fill="#4ca567" opacity="0.75"/>
+
+    <!-- List item 2 — checked -->
+    <circle cx="200" cy="256" r="18" fill="#4ca567"/>
+    <polyline points="191,256 198,265 213,247" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="229" y="247" width="88" height="17" rx="8.5" fill="#4ca567" opacity="0.75"/>
+
+    <!-- List item 3 — unchecked (outline circle) -->
+    <circle cx="200" cy="312" r="18" fill="none" stroke="#4ca567" stroke-width="4"/>
+    <rect x="229" y="303" width="100" height="17" rx="8.5" fill="#b8dfc0"/>
+
+    <!-- List item 4 — unchecked -->
+    <circle cx="200" cy="368" r="18" fill="none" stroke="#4ca567" stroke-width="4"/>
+    <rect x="229" y="359" width="72" height="17" rx="8.5" fill="#b8dfc0"/>
+</svg>

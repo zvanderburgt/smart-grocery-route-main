@@ -1,0 +1,30 @@
+Shopping List
+
+2 Milk
+Bread x 3
+4 Eggs
+Apples x 5
+2 bags of Rice
+3x Pasta
+6 cans of Tomato Sauce
+Butter
+Cheese x 2
+4 Onions
+
+---
+Expected OCR Result:
+["2 Milk", "Bread x 3", "4 Eggs", "Apples x 5", "2 bags of Rice", "3x Pasta", "6 cans of Tomato Sauce", "Butter", "Cheese x 2", "4 Onions"]
+
+Expected Item Count: 10
+
+Expected Parsed Quantities:
+- Milk: 2
+- Bread: 3
+- Eggs: 4
+- Apples: 5
+- Rice: 2
+- Pasta: 3
+- Tomato Sauce: 6
+- Butter: 1
+- Cheese: 2
+- Onions: 4
