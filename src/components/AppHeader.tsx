@@ -52,11 +52,13 @@ export const AppHeader = memo(function AppHeader({
       ? 'Ready in store'
       : 'Preparing tools'
 
+  // "Preparing tools" is a neutral transitional state, not a warning: the warm
+  // accent reads as an error next to the destructive Offline chip.
   const readinessClassName = !isOnline
     ? 'border-destructive/20 bg-destructive/10 text-destructive'
     : serviceWorkerReady
       ? 'border-primary/20 bg-primary/10 text-primary'
-      : 'border-accent/20 bg-accent/10 text-foreground'
+      : 'border-border bg-muted text-muted-foreground'
 
   const readinessDetail = pwaStatusLabel
   const badgeTransition = shouldReduceMotion
@@ -87,7 +89,13 @@ export const AppHeader = memo(function AppHeader({
   const SyncStatusIcon = syncStatusConfig.icon
 
   return (
-    <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]">
+    /*
+      Positioning is owned by the caller in App.tsx: the pinning wrapper has to
+      be a direct child of the page-height column, otherwise sticky has no room
+      to travel. Keep this element free of `filter`/`transform`/`will-change`,
+      which would make it a containing block for fixed children.
+    */
+    <div className="relative bg-background border-b border-border pt-safe">
       <div className="w-full mx-auto px-4 sm:px-5 py-2 coarse:py-3 space-y-3 coarse:space-y-2">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
@@ -95,11 +103,15 @@ export const AppHeader = memo(function AppHeader({
               initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
               animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
               transition={badgeTransition}
-              className="text-2xl font-bold tracking-tight"
+              className="text-2xl font-bold tracking-tight [@media(max-height:500px)]:text-lg"
             >
               Breadcrumb
             </motion.h1>
-            <div className="flex items-center gap-2">
+            {/* On a phone held sideways (393px tall) a permanently pinned header
+                would eat a third of the screen. The title and the progress row
+                stay; this secondary row (readiness chip + learning toggle) is
+                the first thing that can go. */}
+            <div className="flex items-center gap-2 [@media(max-height:500px)]:hidden">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={readinessLabel}
@@ -128,7 +140,7 @@ export const AppHeader = memo(function AppHeader({
                 <Button
                   variant={learningProgressVisible ? 'secondary' : 'ghost'}
                   size="icon"
-                  className="h-7 w-7 rounded-full"
+                  className="h-10 w-10 rounded-full"
                   onClick={onToggleLearningProgress}
                   title={learningProgressVisible ? 'Hide learning progress card' : 'Show learning progress card'}
                   aria-label={learningProgressVisible ? 'Hide learning progress card' : 'Show learning progress card'}
@@ -155,23 +167,23 @@ export const AppHeader = memo(function AppHeader({
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 coarse:h-10 coarse:w-10"
+              className="h-11 w-11"
               onClick={onSettingsClick}
               title="Settings and utilities"
               aria-label="Settings and utilities"
             >
-              <GearSix className="h-5 w-5 coarse:h-6 coarse:w-6" />
+              <GearSix className="h-5 w-5" />
             </Button>
             {pwaInstall.canInstall && !pwaInstall.isIOS && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 coarse:h-10 coarse:w-10 text-green-600"
+                className="h-11 w-11 text-green-600"
                 onClick={() => pwaInstall.triggerInstall()}
                 title="Install app"
                 aria-label="Install app"
               >
-                <DeviceMobile className="h-5 w-5 coarse:h-6 coarse:w-6" />
+                <DeviceMobile className="h-5 w-5" />
               </Button>
             )}
           </div>

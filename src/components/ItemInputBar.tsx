@@ -94,13 +94,18 @@ export const ItemInputBar = memo(function ItemInputBar({
       >
 
         <div className="relative flex items-center gap-2">
+          {/*
+            text-base, not text-sm: a focused input under 16px makes iOS zoom the
+            viewport. `coarse:text-lg` used to sit here, but the plain text-sm
+            utility won that cascade, so it never applied.
+          */}
           <Input
             id="new-item-input"
             value={newItemName}
             onChange={(e) => onNewItemNameChange(e.target.value)}
             onKeyPress={onKeyPress}
             placeholder={isListening ? 'Listening for commands...' : 'Add Grocery'}
-            className="flex-1 min-w-0 h-12 border-transparent bg-transparent px-2 text-sm font-medium tracking-wide shadow-none focus-visible:border-transparent focus-visible:ring-0 coarse:h-14 coarse:text-lg"
+            className="flex-1 min-w-0 h-12 border-transparent bg-transparent px-2 text-base md:text-sm font-medium tracking-wide shadow-none focus-visible:border-transparent focus-visible:ring-0 coarse:h-14"
             style={{ background: inputGradient }}
             disabled={isListening}
           />
@@ -110,8 +115,8 @@ export const ItemInputBar = memo(function ItemInputBar({
             variant="ghost"
             className={
               isListening
-                ? 'h-10 w-10 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 animate-pulse'
-                : 'h-10 w-10 rounded-full text-muted-foreground hover:text-foreground'
+                ? 'h-11 w-11 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 animate-pulse'
+                : 'h-11 w-11 rounded-full text-muted-foreground hover:text-foreground'
             }
             title={isSupported ? (isListening ? 'Stop voice input' : 'Voice input') : 'Voice input is not supported on this browser'}
             aria-label={isListening ? 'Stop listening' : 'Start voice input'}
@@ -121,7 +126,7 @@ export const ItemInputBar = memo(function ItemInputBar({
           <Button
             size="icon"
             variant={isOrganizeMode ? 'secondary' : 'ghost'}
-            className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground"
+            className="h-11 w-11 rounded-full text-muted-foreground hover:text-foreground"
             title="Open tools"
             aria-label="Open tools"
             disabled={isListening}
@@ -133,7 +138,7 @@ export const ItemInputBar = memo(function ItemInputBar({
             onClick={onAddItem}
             disabled={isListening}
             size="icon"
-            className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90"
+            className="h-11 w-11 rounded-full bg-primary hover:bg-primary/90"
             title="Add item"
             aria-label="Add item"
           >
@@ -182,7 +187,8 @@ export const ItemInputBar = memo(function ItemInputBar({
       </AnimatePresence>
 
       <Sheet open={isToolsOpen} onOpenChange={setIsToolsOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl px-4 pb-6 pt-4 sm:max-w-none">
+        {/* pb keeps the last action row clear of the iPhone home indicator. */}
+        <SheetContent side="bottom" className="rounded-t-2xl px-4 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:max-w-none">
           <SheetHeader className="px-0 pb-4">
             <SheetTitle>Shopping tools</SheetTitle>
             <SheetDescription>Secondary actions stay here so the list can keep focus.</SheetDescription>

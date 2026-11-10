@@ -6,8 +6,9 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { Lightbulb, Sparkle, Pencil, DotsSixVertical, CaretDown, Carrot, Cow, Fish, Egg, Snowflake, Bread, BowlFood, Jar, Wine, Popcorn, Package, Flask, Broom, SprayBottle, Basket } from '@phosphor-icons/react'
+import { Check, Lightbulb, Sparkle, Pencil, DotsSixVertical, CaretDown, Carrot, Cow, Fish, Egg, Snowflake, Bread, BowlFood, Jar, Wine, Popcorn, Package, Flask, Broom, SprayBottle, Basket } from '@phosphor-icons/react'
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 interface GrocerySectionProps {
   section: Section
@@ -80,8 +81,8 @@ export const GrocerySection = memo(function GrocerySection({
   const shouldReduceMotion = useReducedMotion()
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   
-  const uncheckedCount = section.items.filter(item => !item.checked).length
   const totalCount = section.items.length
+  const uncheckedCount = section.items.filter(item => !item.checked).length
   
   const displayName = section.customName || section.name
 
@@ -98,8 +99,8 @@ export const GrocerySection = memo(function GrocerySection({
   return (
     <>
       <motion.div layout transition={cardTransition}>
-      <Card className={`border-border/50 ${section.isLearned ? 'bg-accent/5 border-accent/20' : 'bg-card/50'} group overflow-hidden`}>
-      <CardHeader className="pb-2">
+      <Card className={`gap-1 py-2.5 border-border/50 ${section.isLearned ? 'bg-accent/5 border-accent/20' : 'bg-card/50'} group overflow-hidden`}>
+      <CardHeader className="pb-1">
         <div className="flex items-center gap-2 min-w-0">
           {isOrganizeMode && (
             <div
@@ -114,10 +115,20 @@ export const GrocerySection = memo(function GrocerySection({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0 hover:bg-muted/50"
+            /* 44x44 hit area without growing the header row: negative vertical
+               margins absorb the extra height, and pulling 8px left / 4px right
+               keeps the caret near its old spot so titles keep their width. */
+            className={cn(
+              'h-11 w-11 -my-2 -mr-1 shrink-0 hover:bg-muted/50',
+              // Pulling 8px left would sit flush against the drag handle in
+              // organize mode, so a thumb aiming for the handle would collapse
+              // the section instead of starting a drag.
+              !isOrganizeMode && '-ml-2'
+            )}
             onClick={() => onToggleCollapse?.(section.id)}
             title={isCollapsed ? 'Expand section' : 'Collapse section'}
             aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
+            aria-expanded={!isCollapsed}
           >
             <motion.div
               animate={{ rotate: isCollapsed ? -90 : 0 }}
@@ -166,11 +177,26 @@ export const GrocerySection = memo(function GrocerySection({
             </Button>
           )}
 
-          <Badge variant="secondary" className="shrink-0 text-xs font-medium tabular-nums">
-            {uncheckedCount}/{totalCount}
+          <Badge
+            variant="secondary"
+            className="shrink-0 gap-1 px-1.5 text-xs font-medium tabular-nums"
+            title={
+              uncheckedCount === 0
+                ? 'All items picked up'
+                : `${uncheckedCount} of ${totalCount} still to pick up`
+            }
+          >
+            {/* "3 items", not "0/3": the header already owns progress
+                ("N items left / % complete"), so a fraction here read as a
+                second, contradicting progress. The check mark keeps the one
+                thing the fraction did communicate - that this section is done. */}
+            {totalCount > 0 && uncheckedCount === 0 && (
+              <Check className="h-3 w-3" weight="bold" aria-hidden="true" />
+            )}
+            {totalCount} {totalCount === 1 ? 'item' : 'items'}
           </Badge>
         </div>
-        <Separator className="mt-1.5" />
+        <Separator className="mt-1" />
       </CardHeader>
         <AnimatePresence initial={false}>
           {!isCollapsed && (
@@ -181,7 +207,7 @@ export const GrocerySection = memo(function GrocerySection({
               transition={cardTransition}
               style={{ overflow: 'hidden' }}
             >
-              <CardContent className="space-y-1.5 pt-0 pb-1.5">
+              <CardContent className="space-y-1 pt-0 pb-1">
                 <AnimatePresence mode="popLayout">
                   {section.items.map(item => (
                     <GroceryItemComponent

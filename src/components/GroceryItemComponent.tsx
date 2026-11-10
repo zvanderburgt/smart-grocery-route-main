@@ -79,74 +79,94 @@ export const GroceryItemComponent = memo(function GroceryItemComponent({ item, o
         exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.97, filter: 'blur(6px)' }}
         transition={itemTransition}
         className={cn(
-          'flex items-start gap-3.5 py-3 px-3.5 sm:px-4 bg-card rounded-lg border border-border',
+          'flex items-stretch bg-card rounded-lg border border-border',
           'hover:border-primary/30 transition-colors group',
           item.checked && 'opacity-60'
         )}
       >
-        <Checkbox
-          id={`item-${item.id}`}
-          checked={item.checked}
-          onCheckedChange={() => onToggle(item.id)}
-          className="h-7 w-7 shrink-0 mt-0.5 sm:mt-0"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2">
-            <div className="flex-1 min-w-0 space-y-1">
-              <label
-                htmlFor={`item-${item.id}`}
-                className={cn(
-                  'block text-base font-medium tracking-wide cursor-pointer select-none whitespace-normal wrap-break-word leading-snug',
-                  item.checked && 'line-through text-muted-foreground'
-                )}
+        {/*
+          The <label> is the check target, not the 20px checkbox: one-handed
+          shopping means a thumb should land anywhere on the row. Keeping the
+          checkbox inside the label means the whole 48px-tall strip toggles
+          while the checkbox stays the single focusable, screen-reader-visible
+          control (no duplicate role="checkbox").
+        */}
+        <label
+          htmlFor={`item-${item.id}`}
+          className="flex flex-1 min-w-0 items-start gap-3 min-h-12 cursor-pointer select-none rounded-lg px-3 py-2.5"
+        >
+          <Checkbox
+            id={`item-${item.id}`}
+            checked={item.checked}
+            onCheckedChange={() => onToggle(item.id)}
+            /* Explicit name so the visible "×N" chip (aria-hidden) and the
+               quantity never collapse into "Apples3" for screen readers. */
+            aria-label={quantity === 1 ? item.name : `${item.name}, quantity ${quantity}`}
+            className="h-6 w-6 shrink-0 mt-0.5"
+          />
+          {/* Name and quantity chip share one wrapping line, so the chip sits
+              next to the name instead of drifting to the row edge. */}
+          <span className="flex flex-1 min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+            <span
+              className={cn(
+                'min-w-0 text-base font-medium tracking-wide whitespace-normal wrap-break-word leading-snug',
+                item.checked && 'line-through text-muted-foreground'
+              )}
+            >
+              {item.name}
+            </span>
+            {quantity !== 1 && (
+              // Quantity 1 is the default, so only the interesting value is shown
+              <span
+                aria-hidden="true"
+                className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums leading-4 text-muted-foreground"
               >
-                {item.name}
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Quantity <span className="font-semibold tabular-nums">{quantity}</span>
-              </p>
-            </div>
+                ×{quantity}
+              </span>
+            )}
+          </span>
+        </label>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 text-muted-foreground hover:text-foreground shrink-0"
-                  title="Item actions"
-                  aria-label="Item actions"
-                >
-                  <DotsThree className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={handleIncrement}>
-                  <Plus className="h-4 w-4" />
-                  Increase quantity
+        <div className="flex items-center pr-0.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 text-muted-foreground hover:text-foreground shrink-0"
+                title="Item actions"
+                aria-label="Item actions"
+              >
+                <DotsThree className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={handleIncrement}>
+                <Plus className="h-4 w-4" />
+                Increase quantity
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleDecrement} disabled={quantity <= 1}>
+                <Minus className="h-4 w-4" />
+                Decrease quantity
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {onCategoryChange && (
+                <DropdownMenuItem onSelect={openRecategorizeDialog}>
+                  <ArrowsClockwise className="h-4 w-4" />
+                  Recategorize
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={handleDecrement} disabled={quantity <= 1}>
-                  <Minus className="h-4 w-4" />
-                  Decrease quantity
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {onCategoryChange && (
-                  <DropdownMenuItem onSelect={openRecategorizeDialog}>
-                    <ArrowsClockwise className="h-4 w-4" />
-                    Recategorize
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onSelect={() => setIsRenameOpen(true)}>
-                  <PencilSimple className="h-4 w-4" />
-                  Rename item
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onSelect={() => setIsDeleteOpen(true)}>
-                  <Trash className="h-4 w-4" />
-                  Delete item
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              )}
+              <DropdownMenuItem onSelect={() => setIsRenameOpen(true)}>
+                <PencilSimple className="h-4 w-4" />
+                Rename item
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onSelect={() => setIsDeleteOpen(true)}>
+                <Trash className="h-4 w-4" />
+                Delete item
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </motion.div>
 

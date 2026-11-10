@@ -121,7 +121,9 @@ describe("GrocerySection", () => {
     icon: "🥬",
   }
 
-  it("renders a category icon and hides section editing controls until organize mode is enabled", () => {
+  it("renders a category icon and hides section editing controls until organize mode is enabled", async () => {
+    const user = userEvent.setup()
+    const onToggleCollapse = vi.fn()
     const { rerender } = render(
       <GrocerySection
         section={section}
@@ -133,7 +135,7 @@ describe("GrocerySection", () => {
         onRenameSection={vi.fn()}
         showConfidence={true}
         isCollapsed={false}
-        onToggleCollapse={vi.fn()}
+        onToggleCollapse={onToggleCollapse}
         isOrganizeMode={false}
       />,
     )
@@ -141,6 +143,11 @@ describe("GrocerySection", () => {
     expect(screen.getByLabelText("Produce icon")).toBeInTheDocument()
     expect(screen.queryByLabelText("Drag to reorder")).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Rename section" })).not.toBeInTheDocument()
+    // "1 item" rather than a "0/1" fraction that reads like progress
+    expect(screen.getByText("1 item")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Collapse section" }))
+    expect(onToggleCollapse).toHaveBeenCalledWith("produce")
 
     rerender(
       <GrocerySection
@@ -223,6 +230,85 @@ describe("GroceryItemComponent", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(screen.getByText("Recategorize item")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Save category" })).toBeInTheDocument()
+  })
+
+  it("makes the whole row a check target without stealing the menu button", async () => {
+    const user = userEvent.setup()
+    const onToggle = vi.fn()
+    const item: GroceryItem = {
+      id: "item-1",
+      name: "Apples",
+      checked: false,
+      addedAt: Date.now(),
+      quantity: 1,
+    }
+
+    render(
+      <GroceryItemComponent
+        item={item}
+        onToggle={onToggle}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onQuantityChange={vi.fn()}
+        onCategoryChange={vi.fn()}
+      />,
+    )
+
+    // One-handed tapping: the row label, not just the checkbox, toggles -
+    // and one tap is one toggle, not two (the checkbox lives inside the label).
+    await user.click(screen.getByText("Apples"))
+    expect(onToggle).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole("checkbox"))
+    expect(onToggle).toHaveBeenCalledTimes(2)
+
+    // The actions menu must be a sibling of the label: nesting a button inside
+    // a <label> is invalid markup and makes AT announce the row as one control.
+    expect(screen.getByRole("button", { name: "Item actions" }).closest("label")).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Item actions" }))
+    expect(onToggle).toHaveBeenCalledTimes(2)
+  })
+
+  it("only shows a quantity marker when it is not the default 1", () => {
+    const item: GroceryItem = {
+      id: "item-1",
+      name: "Apples",
+      checked: false,
+      addedAt: Date.now(),
+      quantity: 1,
+    }
+
+    const { rerender } = render(
+      <GroceryItemComponent
+        item={item}
+        onToggle={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onQuantityChange={vi.fn()}
+        onCategoryChange={vi.fn()}
+      />,
+    )
+
+    // No quantity line at all, and specifically no "×1" marker: the default
+    // quantity must not be rendered, only the interesting values.
+    expect(screen.queryByText(/Quantity/)).not.toBeInTheDocument()
+    expect(screen.queryByText("×1")).not.toBeInTheDocument()
+
+    rerender(
+      <GroceryItemComponent
+        item={{ ...item, quantity: 3 }}
+        onToggle={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onQuantityChange={vi.fn()}
+        onCategoryChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText("×3")).toBeInTheDocument()
+    // Screen readers still hear the quantity, via the checkbox's name.
+    expect(screen.getByRole("checkbox", { name: "Apples, quantity 3" })).toBeInTheDocument()
   })
 })
 

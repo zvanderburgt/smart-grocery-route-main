@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback, memo, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, memo, lazy, Suspense } from 'react'
 import { useLocalStorage } from '@/hooks/use-local-storage'
 import { usePWAState } from '@/hooks/use-pwa-state'
 import { useSections } from '@/hooks/use-sections'
@@ -137,6 +137,8 @@ function App() {
   const [showLearningProgressNearSearch, setShowLearningProgressNearSearch] = useState(false)
   const [isSearchSectionVisible, setIsSearchSectionVisible] = useState(true)
   const searchSectionRef = useRef<HTMLDivElement | null>(null)
+  const headerRef = useRef<HTMLDivElement | null>(null)
+  const composerRef = useRef<HTMLDivElement | null>(null)
   const { isOnline, serviceWorkerReady, pwaStatusLabel } = usePWAState()
 
   const safeItems = useMemo(() => (items ?? []).filter(item => !item.isTombstone), [items])
@@ -294,6 +296,47 @@ function App() {
       setShowLearningProgressNearSearch(false)
     }
   }, [showLearningProgressNearSearch, isSearchSectionVisible])
+
+  // The composer pins directly below the header, and the header grows (progress
+  // bar, wrap, safe-area inset), so the offset has to be measured rather than
+  // hard-coded. Same measurement feeds scroll-padding so focus/anchor scrolling
+  // never parks a row behind the pinned bars.
+  // useLayoutEffect, not useEffect: on a scroll-restored reload the composer
+  // would otherwise paint one frame at top: 0, on top of the header.
+  useLayoutEffect(() => {
+    const header = headerRef.current
+    if (!header || typeof ResizeObserver === 'undefined') return
+
+    const root = document.documentElement
+    // The composer only pins on phones (`max-sm:`), so on a desktop its height
+    // must not be folded into scroll-padding - it is not covering anything.
+    const composerIsPinned = window.matchMedia('(max-width: 639.98px)')
+
+    const syncPinnedOffsets = () => {
+      const headerHeight = header.offsetHeight
+      const composerHeight = composerIsPinned.matches ? (composerRef.current?.offsetHeight ?? 0) : 0
+      root.style.setProperty('--app-header-height', `${headerHeight}px`)
+      root.style.setProperty('--app-sticky-stack-height', `${headerHeight + composerHeight}px`)
+    }
+
+    syncPinnedOffsets()
+    const observer = new ResizeObserver(syncPinnedOffsets)
+    observer.observe(header)
+    if (composerRef.current) observer.observe(composerRef.current)
+
+    // Rotation or a window resize changes which breakpoint is active, and that
+    // changes whether the composer height belongs in the stack.
+    composerIsPinned.addEventListener('change', syncPinnedOffsets)
+    window.addEventListener('resize', syncPinnedOffsets)
+
+    return () => {
+      observer.disconnect()
+      composerIsPinned.removeEventListener('change', syncPinnedOffsets)
+      window.removeEventListener('resize', syncPinnedOffsets)
+      root.style.removeProperty('--app-header-height')
+      root.style.removeProperty('--app-sticky-stack-height')
+    }
+  }, [showStats])
 
 
 
@@ -1057,15 +1100,17 @@ function App() {
 
   return showStats ? (
     <div className="min-h-dvh bg-background">
-      <Toaster position="top-center" />
+      <Toaster position="bottom-center" />
       <Suspense fallback={<div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading…</div>}>
         <StatsView onBack={() => setShowStats(false)} />
       </Suspense>
     </div>
   ) : (
     <>
-      <div className="bg-background pb-0">
-      <Toaster position="top-center" />
+      {/* pb-safe clears the iPhone home indicator below the last row; env() is 0
+          on desktop, so the previous spacing is untouched there. */}
+      <div className="bg-background pb-safe px-safe">
+      <Toaster position="bottom-center" />
       
       {pwaInstall.canInstall && (
         <Suspense fallback={null}>
@@ -1073,31 +1118,55 @@ function App() {
         </Suspense>
       )}
 
-      <motion.div
-        initial={shouldReduceMotion ? false : { opacity: 0, y: -10, filter: 'blur(10px)' }}
-        animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
-        transition={shellTransition}
-      >
-        <AppHeader
-          isOnline={isOnline}
-          serviceWorkerReady={serviceWorkerReady}
-          pwaStatusLabel={pwaStatusLabel}
-          onSettingsClick={() => setIsDiagnosticsOpen(true)}
-          pwaInstall={pwaInstall}
-          totalItems={safeItems.length}
-          unresolvedItems={unresolvedItems}
-          progress={progress}
-          canToggleLearningProgress={safeTrips.length > 0}
-          learningProgressVisible={showLearningProgressNearSearch}
-          onToggleLearningProgress={() => setShowLearningProgressNearSearch(current => !current)}
-          googleSheetsSyncStatus={syncState?.status}
-          googleSheetsLastSync={syncState?.lastSyncAt}
-        />
-      </motion.div>
-
-      <div className="w-full mx-auto px-4 sm:px-5 py-1 coarse:py-0 space-y-1 coarse:space-y-0.5">
+      {/*
+        The pin lives here, not in AppHeader: a sticky box can only travel inside
+        its containing block, and the animation wrapper used to be exactly as
+        tall as the header, so it had zero travel. This div is a direct child of
+        the page-height column, and the blur animation keeps running one level
+        down where a `filter` can no longer break positioning.
+      */}
+      <div ref={headerRef} className="sticky top-0 z-30">
         <motion.div
-          ref={searchSectionRef}
+          initial={shouldReduceMotion ? false : { opacity: 0, y: -10, filter: 'blur(10px)' }}
+          animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={shellTransition}
+        >
+          <AppHeader
+            isOnline={isOnline}
+            serviceWorkerReady={serviceWorkerReady}
+            pwaStatusLabel={pwaStatusLabel}
+            onSettingsClick={() => setIsDiagnosticsOpen(true)}
+            pwaInstall={pwaInstall}
+            totalItems={safeItems.length}
+            unresolvedItems={unresolvedItems}
+            progress={progress}
+            canToggleLearningProgress={safeTrips.length > 0}
+            learningProgressVisible={showLearningProgressNearSearch}
+            onToggleLearningProgress={() => setShowLearningProgressNearSearch(current => !current)}
+            googleSheetsSyncStatus={syncState?.status}
+            googleSheetsLastSync={syncState?.lastSyncAt}
+          />
+        </motion.div>
+      </div>
+
+      {/*
+        The composer is pinned, so it never leaves the viewport; this marker keeps
+        "is the search area on screen" meaning the same thing it did before, i.e.
+        the learning-progress card still collapses once you scroll into the list.
+      */}
+      <div ref={searchSectionRef} aria-hidden="true" className="h-px w-full" />
+
+      {/*
+        A sticky box can only travel inside its containing block, so the composer
+        has to sit directly in this page-height column. Pinned on phones only —
+        desktop keeps its plain single-column flow.
+      */}
+      <div
+        ref={composerRef}
+        className="max-sm:sticky max-sm:z-20 max-sm:bg-background/95 max-sm:backdrop-blur-sm px-4 sm:px-5 py-1 coarse:py-0"
+        style={{ top: 'var(--app-header-height, 0px)' }}
+      >
+        <motion.div
           initial={shouldReduceMotion ? false : { opacity: 0, y: 12, filter: 'blur(12px)' }}
           animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={shellTransition}
@@ -1121,25 +1190,31 @@ function App() {
             hasItems={safeItems.length > 0}
             isOrganizeMode={isOrganizeMode}
           />
-
-          <AnimatePresence initial={false}>
-            {showLearningProgressNearSearch && isSearchSectionVisible && (
-              <motion.div
-                key="floating-learning-progress"
-                initial={shouldReduceMotion ? false : { opacity: 0, y: -8, filter: 'blur(8px)' }}
-                animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={shouldReduceMotion ? undefined : { opacity: 0, y: -6, filter: 'blur(6px)' }}
-                transition={feedbackTransition}
-                className="pt-1"
-              >
-                <StatsCard
-                  tripCount={safeTrips.length}
-                  itemsLearned={safeRelationships.length}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </motion.div>
+      </div>
+
+      {/*
+        Learning progress and the active-filter banner belong to the list
+        flow, so they stay out of the pinned composer.
+      */}
+      <div className="w-full mx-auto px-4 sm:px-5 space-y-1 coarse:space-y-0.5">
+        <AnimatePresence initial={false}>
+          {showLearningProgressNearSearch && isSearchSectionVisible && (
+            <motion.div
+              key="floating-learning-progress"
+              initial={shouldReduceMotion ? false : { opacity: 0, y: -8, filter: 'blur(8px)' }}
+              animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={shouldReduceMotion ? undefined : { opacity: 0, y: -6, filter: 'blur(6px)' }}
+              transition={feedbackTransition}
+              className="pt-1"
+            >
+              <StatsCard
+                tripCount={safeTrips.length}
+                itemsLearned={safeRelationships.length}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence initial={false}>
           {filteredSection && (
@@ -1170,7 +1245,6 @@ function App() {
             </motion.div>
           )}
         </AnimatePresence>
-        </div>
       </div>
 
       <div className="w-full mx-auto px-4 sm:px-5 pt-0 pb-3 coarse:pb-2 space-y-1 coarse:space-y-0.5">
@@ -1250,6 +1324,8 @@ function App() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+      {/* Closes the page column that carries the pinned header and composer. */}
       </div>
 
       <Suspense fallback={null}>

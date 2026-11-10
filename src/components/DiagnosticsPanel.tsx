@@ -16,6 +16,22 @@ import { getOpenRouterApiKey, setOpenRouterApiKey, clearOpenRouterApiKey, hasOpe
 import { OCR_PROVIDERS, getOcrProvider, getOcrProviderLabel, isOcrProviderConfigured, setOcrProvider, type OcrProvider } from '@/lib/ocr-provider'
 import { DEFAULT_OPENCODE_ENDPOINT, clearOpenCodeApiKey, getAvailableOpenCodeModels, getOpenCodeApiKey, getOpenCodeEndpoint, getSelectedOpenCodeModel, setOpenCodeApiKey, setOpenCodeEndpoint, setSelectedOpenCodeModel, validateOpenCodeModel, type OpenCodeModel, type OpenCodeModelValidation } from '@/lib/ocr-opencode'
 
+// Phones need 44px hit targets (iOS HIG / Material); `pointer-coarse` lifts the
+// controls only on touch devices so desktop rows stay compact. Note the project
+// defines its own `coarse:` variant in main.css, but overrides through it lose
+// to the base utility they are meant to beat (same layer, earlier source
+// order), so `coarse:h-11` is a no-op - `pointer-coarse:` is the working one.
+const TOUCH_TARGET = 'pointer-coarse:min-h-11'
+
+// The sheet's X is rendered inside ui/sheet.tsx as the only direct-child button,
+// so widen its hit area from the content instead of forking the shared primitive.
+const SHEET_CLOSE_TOUCH =
+  'pointer-coarse:[&>button]:min-h-11 pointer-coarse:[&>button]:min-w-11 pointer-coarse:[&>button]:grid pointer-coarse:[&>button]:place-items-center'
+
+// Show/Hide toggle sits on top of the key field; 44px tall on touch, 16px on desktop.
+const SECRET_TOGGLE_CLASS =
+  'absolute right-2 top-1/2 -translate-y-1/2 rounded text-xs text-muted-foreground hover:text-foreground pointer-coarse:flex pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:items-center pointer-coarse:justify-center pointer-coarse:px-2'
+
 interface CacheInfo {
   name: string
   size: number
@@ -310,8 +326,8 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
   return (
     <>
       <Sheet open={open} onOpenChange={onClose}>
-        <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto p-6 sm:p-8">
-          <SheetHeader className="p-0 mb-6 sm:mb-8">
+        <SheetContent side="right" className={`w-full sm:w-96 overflow-y-auto p-6 sm:p-8 ${SHEET_CLOSE_TOUCH}`}>
+          <SheetHeader className="p-0 mb-6 sm:mb-8 pointer-coarse:pr-10">
             <SheetTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <GearSix size={20} className="shrink-0" />
               <span className="truncate">Settings</span>
@@ -427,7 +443,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                     key={provider.id}
                     size="sm"
                     variant={ocrProvider === provider.id ? 'default' : 'outline'}
-                    className="text-xs"
+                    className={`text-xs ${TOUCH_TARGET}`}
                     onClick={() => {
                       setOcrProviderState(provider.id)
                       setOcrProvider(provider.id)
@@ -503,12 +519,12 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       value={openRouterKey}
                       onChange={(e) => setOpenRouterKey(e.target.value)}
                       placeholder="sk-or-v1-..."
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pr-14"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pr-16 pointer-coarse:min-h-11"
                     />
                     <button
                       type="button"
                       onClick={() => setShowOpenRouterKey(!showOpenRouterKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                      className={SECRET_TOGGLE_CLASS}
                     >
                       {showOpenRouterKey ? 'Hide' : 'Show'}
                     </button>
@@ -534,7 +550,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                     }}
                     disabled={isSavingKey || !openRouterKey.trim()}
                     size="sm"
-                    className="text-xs"
+                    className={`text-xs ${TOUCH_TARGET}`}
                   >
                     {isSavingKey ? 'Saving...' : isCloudMode ? 'Update Key' : 'Enable Cloud OCR'}
                   </Button>
@@ -549,7 +565,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       }}
                       size="sm"
                       variant="outline"
-                      className="text-xs"
+                      className={`text-xs ${TOUCH_TARGET}`}
                     >
                       <Trash size={12} className="mr-1" />
                       Clear
@@ -559,7 +575,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                     onClick={() => setShowOpenRouterInstructions(true)}
                     size="sm"
                     variant="outline"
-                    className="text-xs"
+                    className={`text-xs ${TOUCH_TARGET}`}
                   >
                     <Question size={12} className="mr-1" />
                     How to Get Key
@@ -598,7 +614,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                         setSelectedOpenRouterModel(modelId)
                       }}
                     >
-                      <SelectTrigger className="h-9 text-xs w-full">
+                      <SelectTrigger className="h-9 text-xs w-full pointer-coarse:min-h-11">
                         <SelectValue
                           placeholder={
                             isLoadingModels
@@ -629,7 +645,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       setSelectedOpenRouterModel(modelId);
                     }}
                     placeholder="minimax/minimax-m3:free"
-                    className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11 ${
                       modelCheck && !isCheckingModel
                         ? modelCheck.valid
                           ? 'border-emerald-500'
@@ -655,7 +671,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Enter the model ID from OpenRouter. Example: <code className="bg-muted px-1 rounded text-xs">minimax/minimax-m3:free</code>
+                    Enter the model ID from OpenRouter. Example: <code className="bg-muted px-1 rounded text-xs wrap-anywhere">minimax/minimax-m3:free</code>
                   </p>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -691,10 +707,10 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       setOpenCodeEndpoint(value)
                     }}
                     placeholder={DEFAULT_OPENCODE_ENDPOINT}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-coarse:min-h-11"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Defaults to the bundled relay at <code className="bg-muted px-1 rounded text-xs">{DEFAULT_OPENCODE_ENDPOINT}</code>.
+                    Defaults to the bundled relay at <code className="bg-muted px-1 rounded text-xs wrap-anywhere">{DEFAULT_OPENCODE_ENDPOINT}</code>.
                     Browsers can&apos;t call opencode.ai's chat endpoint directly (no CORS headers), so a relay is required — see SETUP.md.
                   </p>
                 </div>
@@ -710,12 +726,12 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       value={openCodeKey}
                       onChange={(e) => setOpenCodeKey(e.target.value)}
                       placeholder="Relay holds the key"
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-14"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-16 pointer-coarse:min-h-11"
                     />
                     <button
                       type="button"
                       onClick={() => setShowOpenCodeKey(!showOpenCodeKey)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                      className={SECRET_TOGGLE_CLASS}
                     >
                       {showOpenCodeKey ? 'Hide' : 'Show'}
                     </button>
@@ -735,7 +751,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                     }}
                     disabled={!openCodeKey.trim()}
                     size="sm"
-                    className="text-xs"
+                    className={`text-xs ${TOUCH_TARGET}`}
                   >
                     Save Key
                   </Button>
@@ -749,7 +765,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       }}
                       size="sm"
                       variant="outline"
-                      className="text-xs"
+                      className={`text-xs ${TOUCH_TARGET}`}
                     >
                       <Trash size={12} className="mr-1" />
                       Clear
@@ -769,7 +785,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       setSelectedOpenCodeModel(modelId)
                     }}
                   >
-                    <SelectTrigger className="h-9 text-xs w-full">
+                    <SelectTrigger className="h-9 text-xs w-full pointer-coarse:min-h-11">
                       <SelectValue
                         placeholder={
                           isLoadingOpenCodeModels
@@ -797,7 +813,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                       setSelectedOpenCodeModel(e.target.value)
                     }}
                     placeholder="glm-5.3-flash"
-                    className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                    className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pointer-coarse:min-h-11 ${
                       openCodeCheck && !isCheckingOpenCodeModel
                         ? openCodeCheck.valid
                           ? 'border-emerald-500'
@@ -838,7 +854,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
               <Button
                 onClick={() => setShowClearLearningConfirm(true)}
                 disabled={!hasLearningData}
-                className="w-full text-xs sm:text-sm"
+                className="w-full text-xs sm:text-sm pointer-coarse:min-h-11"
                 variant="outline"
                 size="sm"
               >
@@ -939,7 +955,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
             <Separator />
 
             <div className="space-y-2 pb-4">
-              <Button onClick={handleExportDiagnostics} className="w-full text-xs sm:text-sm" variant="outline" size="sm">
+              <Button onClick={handleExportDiagnostics} className="w-full text-xs sm:text-sm pointer-coarse:min-h-11" variant="outline" size="sm">
                 <Download size={14} className="mr-2 shrink-0" />
                 <span className="truncate">Export Diagnostics</span>
               </Button>
@@ -947,7 +963,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
               <Button
                 onClick={() => setShowClearConfirm(true)}
                 disabled={isClearing || caches.length === 0}
-                className="w-full text-xs sm:text-sm"
+                className="w-full text-xs sm:text-sm pointer-coarse:min-h-11"
                 variant="destructive"
                 size="sm"
               >
@@ -1040,7 +1056,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
       </Dialog>
 
       <AlertDialog open={showClearLearningConfirm} onOpenChange={setShowClearLearningConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[1000]">
           <AlertDialogHeader>
             <AlertDialogTitle>Clear Learning Data?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1054,8 +1070,8 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm} className="z-[1000]">
-        <AlertDialogContent>
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent className="z-[1000]">
           <AlertDialogHeader>
             <AlertDialogTitle>Clear All Caches?</AlertDialogTitle>
             <AlertDialogDescription>

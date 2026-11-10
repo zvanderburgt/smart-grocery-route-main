@@ -7,6 +7,12 @@
   ---break---
 */
 @custom-variant dark (&:is(.dark *));
+/*
+  NOTE: this variant only *adds* declarations that nothing else sets. Using it
+  to override a base utility (`py-2 coarse:py-3`, `text-sm coarse:text-lg`) does
+  nothing: both land in the same layer, so the base utility wins on source
+  order. Use Tailwind's built-in `pointer-coarse:` variant for overrides.
+*/
 @custom-variant coarse (@media (pointer: coarse));
 @custom-variant fine (@media (pointer: fine));
 @custom-variant pwa (@media (display-mode: standalone));
@@ -176,6 +182,30 @@
 }
 
 /*
+  Safe-area helpers. Several surfaces are anchored to a screen edge (pinned
+  header/composer, bottom sheet) and have to clear the iPhone home indicator or
+  a landscape notch. env() insets are 0 on desktop, so these are no-ops there.
+  Element sides all resolve to 0 when there is no inset, which is why plain
+  utilities can be swapped for these without touching the desktop spacing.
+
+  Each helper sets one side only; when a base offset is also needed, use a
+  single calc() rather than stacking two padding utilities, whose winner would
+  depend on stylesheet order.
+*/
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/*
   ---break---
 */
 @layer base {
@@ -189,10 +219,48 @@
     min-height: 100%;
   }
 
+  html {
+    /*
+      Measured by App.tsx: the header height changes with the progress bar and
+      the top safe-area inset, and the composer pins directly below it.
+    */
+    --app-header-height: 0px;
+    --app-sticky-stack-height: 0px;
+
+    /* Anchor/focus scrolling must not park content behind the pinned bars. */
+    scroll-padding-top: var(--app-sticky-stack-height);
+
+    /*
+      Chrome Android reads a downward pull at the top of the page as a
+      pull-to-refresh gesture, which reloads the PWA mid-shop. `contain` keeps
+      the overscroll inside the document without disabling the bounce.
+    */
+    overscroll-behavior-y: contain;
+  }
+
   body {
     @apply bg-background text-foreground;
     min-height: 100dvh;
     overflow-x: hidden;
+    overscroll-behavior-y: contain;
+  }
+
+  /*
+    Touch hygiene. `manipulation` drops the ~300ms double-tap-zoom wait on
+    tappable controls while still allowing pinch zoom, unlike `none`.
+  */
+  @media (pointer: coarse) {
+    a,
+    button,
+    input,
+    label,
+    select,
+    summary,
+    textarea,
+    [role='button'] {
+      touch-action: manipulation;
+    }
+
   }
 
   @media (max-width: 640px) {
@@ -206,5 +274,23 @@
     body::-webkit-scrollbar {
       display: none;
     }
+  }
+}
+
+/*
+  iOS zooms the viewport when a focused field renders under 16px, and it never
+  zooms back out. This lives OUTSIDE @layer base on purpose: `text-sm` and
+  friends are utilities, and unlayered CSS beats every layer regardless of
+  specificity - the same rule inside the base layer lost to `text-sm` and was
+  dead code. A flat 16px (not `max(16px, 1em)`) keeps it independent of an
+  inherited larger size.
+*/
+@media (pointer: coarse) {
+  /* Every text-entry control, not just the shadcn <Input>: the settings sheet
+     has bare <input>s with `text-xs`, and those zoomed too. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: 16px;
   }
 }

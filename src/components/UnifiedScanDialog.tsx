@@ -531,7 +531,7 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
           }
         }}
       >
-        <DialogContent className="inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col translate-x-0 translate-y-0 rounded-none border-0 px-3 py-4 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:top-[50%] sm:left-[50%] sm:right-auto sm:bottom-auto sm:h-auto sm:max-h-[90dvh] sm:w-full sm:max-w-xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:px-6 sm:py-6">
+        <DialogContent className="inset-0 flex h-dvh max-h-dvh w-screen max-w-none flex-col translate-x-0 translate-y-0 rounded-none border-0 px-3 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:top-[50%] sm:left-[50%] sm:right-auto sm:bottom-auto sm:h-auto sm:max-h-[90dvh] sm:w-full sm:max-w-xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:px-6 sm:py-6">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Scan className="h-5 w-5" weight="bold" />
@@ -588,7 +588,7 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   onClick={() => void handleCaptureForOCR()}
-                  className="w-full sm:flex-1"
+                  className="h-11 w-full sm:flex-1"
                   disabled={!isScanning || isProcessingOCR || Boolean(pendingUnknownBarcode)}
                 >
                   <Camera className="h-4 w-4 mr-2" />
@@ -596,7 +596,7 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className="h-11 w-full sm:w-auto"
                   onClick={() => {
                     if (isScanning) {
                       void stopScanning()

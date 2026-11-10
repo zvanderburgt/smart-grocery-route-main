@@ -10,6 +10,16 @@ import { CaretDown, CaretUp, Mailbox, FloppyDisk, CloudArrowUp, CloudArrowDown, 
 import { toast } from 'sonner'
 import type { SyncState } from '@/lib/types'
 
+// Phones need 44px hit targets (iOS HIG / Material); `pointer-coarse` only lifts
+// them on touch devices so desktop rows stay compact.
+const TOUCH_TARGET = 'pointer-coarse:min-h-11'
+
+// The standalone sheet's X is rendered inside ui/sheet.tsx as the only
+// direct-child button, so widen its hit area from here rather than forking the
+// shared primitive.
+const SHEET_CLOSE_TOUCH =
+  'pointer-coarse:[&>button]:min-h-11 pointer-coarse:[&>button]:min-w-11 pointer-coarse:[&>button]:grid pointer-coarse:[&>button]:place-items-center'
+
 interface GoogleSheetsSettingsProps {
   sheetId: string
   setSheetId: (id: string) => void
@@ -192,7 +202,7 @@ export function GoogleSheetsSettings({
                 size="sm"
                 onClick={() => setShowDisconnectConfirm(true)}
                 disabled={isSyncing}
-                className="shrink-0"
+                className={`shrink-0 ${TOUCH_TARGET}`}
               >
                 Disconnect
               </Button>
@@ -201,7 +211,7 @@ export function GoogleSheetsSettings({
                 size="sm"
                 onClick={handleConnect}
                 disabled={isSyncing || !sheetId.trim()}
-                className="shrink-0"
+                className={`shrink-0 ${TOUCH_TARGET}`}
               >
                 <CloudArrowUp size={14} className="mr-1.5 shrink-0" />
                 <span className="truncate">Connect</span>
@@ -222,21 +232,21 @@ export function GoogleSheetsSettings({
                 onChange={(e) => setSheetId(e.target.value)}
                 placeholder="Enter Sheet ID from URL"
                 disabled={isSavingSheetId}
-                className="flex-1 min-w-0"
+                className="flex-1 min-w-0 pointer-coarse:min-h-11"
                 aria-label="Google Sheet ID"
               />
               <Button
                 size="sm"
                 onClick={handleSaveSheetId}
                 disabled={isSavingSheetId || !sheetId.trim()}
-                className="shrink-0"
+                className={`shrink-0 ${TOUCH_TARGET}`}
               >
                 <FloppyDisk size={14} className="mr-1.5 shrink-0" />
                 <span className="truncate">{isSavingSheetId ? 'Saving…' : 'Save'}</span>
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Found in the URL: <code className="font-mono bg-muted px-1 rounded">{'docs.google.com/spreadsheets/d/{SHEET_ID}/edit'}</code>
+              Found in the URL: <code className="font-mono bg-muted px-1 rounded wrap-anywhere">{'docs.google.com/spreadsheets/d/{SHEET_ID}/edit'}</code>
             </p>
           </div>
         </div>
@@ -248,7 +258,7 @@ export function GoogleSheetsSettings({
           <h3 className="text-xs sm:text-sm font-semibold">Sync Controls</h3>
           <div className="space-y-2">
             <Button
-              className="w-full justify-start gap-2"
+              className={`w-full justify-start gap-2 ${TOUCH_TARGET}`}
               onClick={handleSyncNow}
               disabled={isSyncing || !isConnected}
               variant={isConnected ? 'default' : 'outline'}
@@ -288,7 +298,7 @@ export function GoogleSheetsSettings({
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start gap-2 px-3 py-2 bg-muted/30 hover:bg-muted/50 text-left text-xs sm:text-sm font-medium transition-colors"
+            className={`w-full justify-start gap-2 px-3 py-2 bg-muted/30 hover:bg-muted/50 text-left text-xs sm:text-sm font-medium transition-colors ${TOUCH_TARGET}`}
             onClick={() => setShowInstructions(!showInstructions)}
             aria-expanded={showInstructions}
           >
@@ -308,7 +318,7 @@ export function GoogleSheetsSettings({
                 <li className="space-y-1">
                   <span className="font-medium text-foreground">Add header row</span>
                   <p>In row 1, add these exact column headers:</p>
-                  <code className="block bg-muted p-2 rounded font-mono text-xs overflow-x-auto whitespace-nowrap">
+                  <code className="block bg-muted p-2 rounded font-mono text-xs wrap-anywhere">
                     id, name, checked, checkedAt, addedAt, category, quantity, updatedAt, updatedBy
                   </code>
                 </li>
@@ -318,8 +328,8 @@ export function GoogleSheetsSettings({
                 </li>
                 <li className="space-y-1">
                   <span className="font-medium text-foreground">Copy the Sheet ID</span>
-                  <p>From the URL: <code className="font-mono bg-muted px-1 rounded">{'docs.google.com/spreadsheets/d/{SHEET_ID}/edit'}</code></p>
-                  <p>Copy the <code className="font-mono bg-muted px-1 rounded">{sheetId || 'SHEET_ID'}</code> part and paste it above.</p>
+                  <p>From the URL: <code className="font-mono bg-muted px-1 rounded wrap-anywhere">{'docs.google.com/spreadsheets/d/{SHEET_ID}/edit'}</code></p>
+                  <p>Copy the <code className="font-mono bg-muted px-1 rounded wrap-anywhere">{sheetId || 'SHEET_ID'}</code> part and paste it above.</p>
                 </li>
                 <li className="space-y-1">
                   <span className="font-medium text-foreground">Click Connect</span>
@@ -336,7 +346,7 @@ export function GoogleSheetsSettings({
 
         {syncState.status === 'error' && syncState.lastError && (
           <AlertDialog open={true} onOpenChange={() => {}}>
-            <AlertDialogContent>
+            <AlertDialogContent className="z-[1000]">
               <AlertDialogHeader>
                 <AlertDialogTitle>Sync Error</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -361,7 +371,7 @@ export function GoogleSheetsSettings({
 
       {/* Disconnect Confirmation */}
       <AlertDialog open={showDisconnectConfirm} onOpenChange={setShowDisconnectConfirm}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[1000]">
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect from Google Sheets?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -380,8 +390,8 @@ export function GoogleSheetsSettings({
   if (standalone) {
     return (
       <Sheet open={true} onOpenChange={() => {}}>
-        <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto p-6 sm:p-8">
-          <SheetHeader className="p-0 mb-6 sm:mb-8">
+        <SheetContent side="right" className={`w-full sm:w-96 overflow-y-auto p-6 sm:p-8 ${SHEET_CLOSE_TOUCH}`}>
+          <SheetHeader className="p-0 mb-6 sm:mb-8 pointer-coarse:pr-10">
             <SheetTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <CloudArrowUp size={20} className="shrink-0 text-primary" />
               <span className="truncate">Google Sheets Sync</span>
