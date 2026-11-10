@@ -1,7 +1,8 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
-import { defineConfig, PluginOption } from "vite";
+import { defineConfig, loadEnv, PluginOption } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import type { ProxyOptions } from "vite";
 
 import sparkPlugin from "@github/spark/spark-vite-plugin";
 import createIconImportProxy from "@github/spark/vitePhosphorIconProxyPlugin";
@@ -9,11 +10,35 @@ import { resolve } from "path";
 
 const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname;
 
+// Dev-only OCR relay. OpenCode's chat endpoint sends no CORS headers, so a
+// browser cannot call it directly; this forwards /api/opencode/* to the Go
+// gateway and injects the API key server-side (from the shell or .env.local) so
+// no key has to sit in localStorage during development. The deployed equivalent
+// is relay/opencode-ocr-worker.js — the client code is identical for both.
+const fileEnv = loadEnv(process.env.NODE_ENV ?? "development", projectRoot, "");
+const openCodeApiKey = process.env.OPENCODE_GO_API_KEY || fileEnv.OPENCODE_GO_API_KEY || "";
+
+const openCodeRelay: ProxyOptions = {
+  target: "https://opencode.ai/zen/go/v1",
+  changeOrigin: true,
+  rewrite: (path) => path.replace(/^\/api\/opencode/, ""),
+  configure: (proxy) => {
+    proxy.on("proxyReq", (proxyReq) => {
+      if (openCodeApiKey && !proxyReq.getHeader("authorization")) {
+        proxyReq.setHeader("authorization", `Bearer ${openCodeApiKey}`);
+      }
+    });
+  },
+};
+
 // https://vite.dev/config/
 export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    proxy: {
+      "/api/opencode": openCodeRelay,
+    },
   },
   plugins: [
     react(),

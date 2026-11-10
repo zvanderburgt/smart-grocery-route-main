@@ -13,6 +13,8 @@ import { GoogleSheetsSettings } from '@/components/GoogleSheetsSettings'
 import { GearSix, Download, Trash, ArrowClockwise, Heart, GraduationCap, ChartBar, Lightbulb, Link, CaretDown, CaretUp, Mailbox, Copy, WarningCircle, CheckCircle, SpinnerBall, Question, CloudArrowUp } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { getOpenRouterApiKey, setOpenRouterApiKey, clearOpenRouterApiKey, hasOpenRouterApiKey, getSelectedOpenRouterModel, setSelectedOpenRouterModel, validateOpenRouterModel, getAvailableOpenRouterModels, getAutoSelectModel, setAutoSelectModel, type ModelValidationResult, type OpenRouterModel } from '@/lib/ocr-openrouter'
+import { OCR_PROVIDERS, getOcrProvider, getOcrProviderLabel, isOcrProviderConfigured, setOcrProvider, type OcrProvider } from '@/lib/ocr-provider'
+import { DEFAULT_OPENCODE_ENDPOINT, clearOpenCodeApiKey, getAvailableOpenCodeModels, getOpenCodeApiKey, getOpenCodeEndpoint, getSelectedOpenCodeModel, setOpenCodeApiKey, setOpenCodeEndpoint, setSelectedOpenCodeModel, validateOpenCodeModel, type OpenCodeModel, type OpenCodeModelValidation } from '@/lib/ocr-opencode'
 
 interface CacheInfo {
   name: string
@@ -93,6 +95,16 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
   const [freeModels, setFreeModels] = useState<OpenRouterModel[]>([])
   const [isLoadingModels, setIsLoadingModels] = useState(false)
   const [autoSelectModel, setAutoSelectModelState] = useState(getAutoSelectModel())
+  // OCR provider selection — OpenRouter (free models) or OpenCode (relay-backed).
+  const [ocrProvider, setOcrProviderState] = useState<OcrProvider>(getOcrProvider())
+  const [openCodeKey, setOpenCodeKey] = useState(getOpenCodeApiKey() || '')
+  const [showOpenCodeKey, setShowOpenCodeKey] = useState(false)
+  const [openCodeEndpoint, setOpenCodeEndpointState] = useState(getOpenCodeEndpoint())
+  const [openCodeModel, setOpenCodeModel] = useState(getSelectedOpenCodeModel())
+  const [openCodeModels, setOpenCodeModels] = useState<OpenCodeModel[]>([])
+  const [isLoadingOpenCodeModels, setIsLoadingOpenCodeModels] = useState(false)
+  const [isCheckingOpenCodeModel, setIsCheckingOpenCodeModel] = useState(false)
+  const [openCodeCheck, setOpenCodeCheck] = useState<OpenCodeModelValidation | null>(null)
   // Bumped whenever the key is actually saved/cleared to localStorage, since typing
   // into the field doesn't touch localStorage and "Save" doesn't change openRouterKey.
   const [keySavedTick, setKeySavedTick] = useState(0)
@@ -135,6 +147,50 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
       .finally(() => setIsLoadingModels(false))
   }, [open, openRouterKey, keySavedTick])
 
+  // OpenCode's model catalog is CORS-open and needs no key, so it can be loaded
+  // whenever the provider is selected and the settings sheet is open.
+  useEffect(() => {
+    if (!open || ocrProvider !== 'opencode') {
+      setIsLoadingOpenCodeModels(false)
+      return
+    }
+
+    let cancelled = false
+    setIsLoadingOpenCodeModels(true)
+    getAvailableOpenCodeModels()
+      .then((models) => {
+        if (!cancelled) setOpenCodeModels(models)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingOpenCodeModels(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, ocrProvider, openCodeEndpoint, keySavedTick])
+
+  // Debounced validation of the OpenCode model id against the live catalog.
+  useEffect(() => {
+    const model = openCodeModel.trim()
+    if (ocrProvider !== 'opencode' || !model) {
+      setOpenCodeCheck(null)
+      return
+    }
+
+    setIsCheckingOpenCodeModel(true)
+    const timer = window.setTimeout(async () => {
+      const result = await validateOpenCodeModel(model)
+      setOpenCodeCheck(result)
+      setIsCheckingOpenCodeModel(false)
+    }, 600)
+
+    return () => {
+      window.clearTimeout(timer)
+      setIsCheckingOpenCodeModel(false)
+    }
+  }, [openCodeModel, openCodeEndpoint, ocrProvider, keySavedTick])
+
   useEffect(() => {
     const loadStatus = async () => {
       // Load fast data immediately
@@ -148,6 +204,10 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
       }
 
       setOpenRouterKey(getOpenRouterApiKey() || '')
+      setOpenCodeKey(getOpenCodeApiKey() || '')
+      setOpenCodeEndpointState(getOpenCodeEndpoint())
+      setOpenCodeModel(getSelectedOpenCodeModel())
+      setOcrProviderState(getOcrProvider())
 
       // Defer expensive cache scanning until after animation
       setIsLoadingDiagnostics(true)
@@ -220,7 +280,8 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
         quota: formatBytes(storageQuota.quota),
         usagePercent: Math.round((storageQuota.usage / storageQuota.quota) * 100),
       },
-      ocrMode: hasOpenRouterApiKey() ? 'cloud' : 'not_configured',
+      ocrMode: isOcrProviderConfigured() ? 'cloud' : 'not_configured',
+      ocrProvider: getOcrProvider(),
       userAgent: navigator.userAgent,
     }
 
@@ -239,7 +300,12 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
 
   const totalCacheSize = caches.reduce((sum, c) => sum + c.size, 0)
   const storagePercent = (storageQuota.usage / storageQuota.quota) * 100
-  const isCloudMode = hasOpenRouterApiKey()
+  const isCloudMode = isOcrProviderConfigured()
+  const isOpenCodeProvider = ocrProvider === 'opencode'
+  const activeModel = isOpenCodeProvider ? openCodeModel : selectedModel
+  const activeModelCheck = isOpenCodeProvider ? openCodeCheck : modelCheck
+  const isCheckingActiveModel = isOpenCodeProvider ? isCheckingOpenCodeModel : isCheckingModel
+  const activeProviderLabel = getOcrProviderLabel(ocrProvider)
 
   return (
     <>
@@ -354,6 +420,26 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
 
             <div className="space-y-2 sm:space-y-3">
               <h3 className="text-xs sm:text-sm font-semibold">OCR Settings</h3>
+
+              <div className="grid grid-cols-2 gap-2">
+                {OCR_PROVIDERS.map((provider) => (
+                  <Button
+                    key={provider.id}
+                    size="sm"
+                    variant={ocrProvider === provider.id ? 'default' : 'outline'}
+                    className="text-xs"
+                    onClick={() => {
+                      setOcrProviderState(provider.id)
+                      setOcrProvider(provider.id)
+                    }}
+                  >
+                    {provider.label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {OCR_PROVIDERS.find((provider) => provider.id === ocrProvider)?.description}
+              </p>
               
               <div className="p-4 rounded-lg border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30">
                 <div className="flex items-start gap-3">
@@ -364,19 +450,19 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                         <CheckCircle size={12} className="mr-1" weight="fill" />
                         Cloud OCR
                       </Badge>
-                      {isCloudMode && isCheckingModel && (
+                      {isCloudMode && isCheckingActiveModel && (
                         <Badge variant="outline" className="text-xs">
                           <SpinnerBall size={12} className="mr-1 animate-spin" />
                           Checking model…
                         </Badge>
                       )}
-                      {isCloudMode && !isCheckingModel && modelCheck?.valid && (
+                      {isCloudMode && !isCheckingActiveModel && activeModelCheck?.valid && (
                         <Badge variant="outline" className="text-xs border-emerald-500 text-emerald-700 dark:text-emerald-400">
                           <CheckCircle size={12} className="mr-1" />
                           Model verified
                         </Badge>
                       )}
-                      {isCloudMode && !isCheckingModel && modelCheck && !modelCheck.valid && (
+                      {isCloudMode && !isCheckingActiveModel && activeModelCheck && !activeModelCheck.valid && (
                         <Badge variant="outline" className="text-xs border-destructive text-destructive">
                           <WarningCircle size={12} className="mr-1" />
                           Invalid model
@@ -385,12 +471,12 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                     </div>
                     <div className="text-sm font-semibold mb-1">
                       {isCloudMode
-                        ? (modelCheck?.valid ? (modelCheck.name || selectedModel) : selectedModel || 'No model set')
-                        : 'MiniMax M3 via OpenRouter'}
+                        ? (activeModelCheck?.valid ? (activeModelCheck.name || activeModel) : activeModel || 'No model set')
+                        : 'Add an API key in Settings to enable OCR'}
                     </div>
                     <div className="text-xs text-muted-foreground mb-2">
                       {isCloudMode
-                        ? (modelCheck && !modelCheck.valid ? modelCheck.reason : 'Cloud OCR is active')
+                        ? (activeModelCheck && !activeModelCheck.valid ? activeModelCheck.reason : `Cloud OCR is active via ${activeProviderLabel}`)
                         : 'Add an API key below to enable OCR'}
                     </div>
                     <div className="flex flex-wrap gap-1 text-xs">
@@ -405,6 +491,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
 
             <Separator />
 
+            {ocrProvider === 'openrouter' && (
             <div className="space-y-2 sm:space-y-3">
               <h3 className="text-xs sm:text-sm font-semibold">OpenRouter API Key</h3>
               <div className="space-y-3">
@@ -584,6 +671,162 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                 </p>
               </div>
             </div>
+            )}
+
+            {ocrProvider === 'opencode' && (
+            <div className="space-y-2 sm:space-y-3">
+              <h3 className="text-xs sm:text-sm font-semibold">OpenCode</h3>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="opencode-endpoint" className="text-xs font-semibold">
+                    Endpoint
+                  </Label>
+                  <input
+                    id="opencode-endpoint"
+                    type="text"
+                    value={openCodeEndpoint}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setOpenCodeEndpointState(value)
+                      setOpenCodeEndpoint(value)
+                    }}
+                    placeholder={DEFAULT_OPENCODE_ENDPOINT}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Defaults to the bundled relay at <code className="bg-muted px-1 rounded text-xs">{DEFAULT_OPENCODE_ENDPOINT}</code>.
+                    Browsers can&apos;t call opencode.ai's chat endpoint directly (no CORS headers), so a relay is required — see SETUP.md.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="opencode-key" className="text-xs font-semibold">
+                    API Key <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <div className="relative">
+                    <input
+                      id="opencode-key"
+                      type={showOpenCodeKey ? 'text' : 'password'}
+                      value={openCodeKey}
+                      onChange={(e) => setOpenCodeKey(e.target.value)}
+                      placeholder="Relay holds the key"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs sm:text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pr-14"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOpenCodeKey(!showOpenCodeKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                    >
+                      {showOpenCodeKey ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    onClick={() => {
+                      if (!openCodeKey.trim()) {
+                        toast.error('Please enter an API key')
+                        return
+                      }
+                      setOpenCodeApiKey(openCodeKey.trim())
+                      setKeySavedTick((t) => t + 1)
+                      toast.success('OpenCode API key saved')
+                    }}
+                    disabled={!openCodeKey.trim()}
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Save Key
+                  </Button>
+                  {getOpenCodeApiKey() && (
+                    <Button
+                      onClick={() => {
+                        clearOpenCodeApiKey()
+                        setOpenCodeKey('')
+                        setKeySavedTick((t) => t + 1)
+                        toast.success('OpenCode API key cleared')
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                    >
+                      <Trash size={12} className="mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="opencode-model" className="text-xs font-semibold">
+                    Model
+                  </Label>
+                  <Select
+                    value=""
+                    disabled={isLoadingOpenCodeModels || openCodeModels.length === 0}
+                    onValueChange={(modelId) => {
+                      setOpenCodeModel(modelId)
+                      setSelectedOpenCodeModel(modelId)
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-xs w-full">
+                      <SelectValue
+                        placeholder={
+                          isLoadingOpenCodeModels
+                            ? 'Loading vision models…'
+                            : openCodeModels.length === 0
+                              ? 'No vision models found'
+                              : 'Switch model…'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {openCodeModels.map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="text-xs">
+                          {m.name} ({m.id})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <input
+                    id="opencode-model"
+                    type="text"
+                    value={openCodeModel}
+                    onChange={(e) => {
+                      setOpenCodeModel(e.target.value)
+                      setSelectedOpenCodeModel(e.target.value)
+                    }}
+                    placeholder="glm-5.3-flash"
+                    className={`flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                      openCodeCheck && !isCheckingOpenCodeModel
+                        ? openCodeCheck.valid
+                          ? 'border-emerald-500'
+                          : 'border-destructive'
+                        : 'border-input'
+                    }`}
+                  />
+                  <p className="text-xs">
+                    {isCheckingOpenCodeModel ? (
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <SpinnerBall size={12} className="animate-spin" /> Checking against OpenCode…
+                      </span>
+                    ) : openCodeCheck?.valid ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <CheckCircle size={12} /> {openCodeCheck.reason ?? 'Valid vision model'}
+                      </span>
+                    ) : openCodeCheck ? (
+                      <span className="text-destructive flex items-center gap-1">
+                        <WarningCircle size={12} /> {openCodeCheck.reason}
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Only models that accept image input are listed. The key needs an OpenCode Go (or Zen) plan.
+                  </p>
+                </div>
+              </div>
+            </div>
+            )}
 
             <Separator />
 

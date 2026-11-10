@@ -8,7 +8,10 @@ import { Camera, Check, Scan, X } from '@phosphor-icons/react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { toast } from 'sonner'
 import { learnBarcode, lookupBarcodeWithLearning, isValidBarcode } from '@/lib/barcode-database'
-import { extractGroceryItemsWithOpenRouter, extractGroceryItemsWithAutoSelect, hasOpenRouterApiKey, getOpenRouterApiKey, setOpenRouterApiKey, getSelectedOpenRouterModel, getAutoSelectModel, type ExtractedItem } from '@/lib/ocr-openrouter'
+import { extractGroceryItems, getOcrProvider, getOcrProviderLabel, isOcrProviderConfigured } from '@/lib/ocr-provider'
+import { setOpenCodeApiKey } from '@/lib/ocr-opencode'
+import { setOpenRouterApiKey } from '@/lib/ocr-openrouter'
+import type { ExtractedItem } from '@/lib/ocr-shared'
 import { OCRErrorDialog } from '@/components/OCRErrorDialog'
 import { OCRScanAnimation } from '@/components/OCRScanAnimation'
 import type { LearnedBrand } from '@/lib/types'
@@ -332,7 +335,7 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
   const handleCaptureForOCR = async () => {
     if (isProcessingOCR) return
 
-    if (!hasOpenRouterApiKey()) {
+    if (!isOcrProviderConfigured()) {
       setShowApiKeyDialog(true)
       return
     }
@@ -344,9 +347,7 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
       setCapturedPreviewImage(capturedImage)
       await stopScanning()
 
-      const items = getAutoSelectModel()
-        ? await extractGroceryItemsWithAutoSelect(capturedImage)
-        : await extractGroceryItemsWithOpenRouter(capturedImage, getSelectedOpenRouterModel())
+      const items = await extractGroceryItems(capturedImage)
 
       if (items.length === 0) {
         setErrorType('no_items')
@@ -378,7 +379,11 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
       toast.error('Please enter an API key')
       return
     }
-    setOpenRouterApiKey(key)
+    if (getOcrProvider() === 'opencode') {
+      setOpenCodeApiKey(key)
+    } else {
+      setOpenRouterApiKey(key)
+    }
     setApiKeyInput('')
     setShowApiKeyDialog(false)
     toast.success('API key saved')
@@ -479,15 +484,17 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Add OpenRouter API Key</DialogTitle>
+            <DialogTitle>Add {getOcrProviderLabel()} API Key</DialogTitle>
             <DialogDescription>
-              To use OCR, add your OpenRouter API key. Get one free at openrouter.ai
+              {getOcrProvider() === 'opencode'
+                ? 'Paste your OpenCode API key. If your relay already holds the key, you can skip this and scan.'
+                : 'To use OCR, add your OpenRouter API key. Get one free at openrouter.ai'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Input
               type="password"
-              placeholder="sk-or-..."
+              placeholder={getOcrProvider() === 'opencode' ? 'OpenCode API key' : 'sk-or-...'}
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               onKeyDown={(e) => {

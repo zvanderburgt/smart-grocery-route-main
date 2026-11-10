@@ -210,6 +210,56 @@ The production build outputs to the `dist/` directory, ready for static hosting 
 
 ---
 
+## 👁️ OCR Providers (OpenRouter or OpenCode)
+
+List scanning (photo → items) runs against a cloud vision model. Two backends are
+supported; pick one in **Settings → OCR Settings**.
+
+### OpenRouter (default)
+
+Direct browser calls, no server needed. Paste an OpenRouter key in Settings and
+either pick a free vision model or leave **Auto-select** on to try the free
+catalog until one answers.
+
+### OpenCode
+
+Routes scans through the OpenCode gateway (opencode.ai Zen/Go), which supports
+models like `glm-5.3-flash`, `deepseek-v4.1-flash`, `minimax-m3`. This needs a
+relay, because the gateway returns no CORS headers and requires an
+`x-opencode-session` header — a browser cannot call it directly.
+
+**Local development** — already wired up, nothing to deploy:
+
+```bash
+# .env.local (git-ignored)
+OPENCODE_GO_API_KEY=your-opencode-key
+npm run dev
+```
+
+The dev server proxies `/api/opencode` → `https://opencode.ai/zen/go/v1` and
+injects the key, so the endpoint default and an empty API key field both work.
+
+**Deployed** — deploy the relay in `relay/` (Cloudflare Worker, one file, free
+tier):
+
+```bash
+npx wrangler secret put OPENCODE_API_KEY
+npx wrangler deploy
+```
+
+Then set **Endpoint** to the Worker URL in Settings and leave the API key blank —
+the Worker holds it. Full instructions: [`relay/README.md`](relay/README.md).
+
+Notes:
+
+- Model discovery (`GET /models`, filtered to image-capable models) goes straight
+  from the browser; only the OCR request itself uses the relay.
+- Reasoning models spend output tokens before answering. The client asks for 2048
+  `max_tokens` to leave room; if a model still returns an empty answer the app
+  says so instead of silently returning zero items.
+
+---
+
 ## 🚀 Deployment
 
 ### Netlify / Vercel / Static Hosting
