@@ -1,11 +1,17 @@
-# Netlify reads this file before the site's UI settings, and only the keys it
-# defines here take precedence - build command and publish directory stay
-# whatever the site is configured with, so this cannot change how the app is
-# built, only which runtime builds it.
+# Netlify deploy config for the Vite PWA.
 #
-# Why the Node pin: Vite 7 requires `^20.19.0 || >=22.12.0` and package.json had
-# no `engines` field, so a build image defaulting to Node 18 (or an older 20.x)
-# fails during install with an unsupported-engine error. Netlify honours
-# NODE_VERSION, .nvmrc and `engines`; this is the most explicit of the three.
+# Both keys here are load-bearing. Without them the site published the raw
+# repository: prod served index.html pointing at /src/main.tsx (200,
+# application/octet-stream) while /assets/* and /manifest.json 404'd, so the app
+# never booted. `publish = "dist"` is the actual fix; the command makes the
+# build explicit rather than depending on whatever the site UI happened to hold.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Vite 7 requires `^20.19.0 || >=22.12.0` and nothing declared it, so a build
+# image defaulting to Node 18 (or an older 20.x) fails during install with an
+# unsupported-engine error. Netlify honours NODE_VERSION, .nvmrc and `engines`;
+# this is the most explicit of the three, and package.json records the same floor.
 [build.environment]
   NODE_VERSION = "22"
