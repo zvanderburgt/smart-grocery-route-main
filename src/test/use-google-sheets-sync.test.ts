@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
 import {
   shouldConsiderAutoSync,
   readPendingDeleteIds,
   writePendingDeleteIds,
+  useGoogleSheetsSync,
 } from '../hooks/use-google-sheets-sync';
+import type { GroceryItem } from '../lib/types';
 
 describe('use-google-sheets-sync', () => {
   describe('shouldConsiderAutoSync', () => {
@@ -76,6 +79,65 @@ describe('use-google-sheets-sync', () => {
       const remaining = readPendingDeleteIds();
       expect(remaining.has('remove-me')).toBe(false);
       expect(remaining.has('keep-me')).toBe(true);
+    });
+  });
+
+  describe('restoreItems (undo for a delete)', () => {
+    const item: GroceryItem = {
+      id: 'item-1',
+      name: 'Milk',
+      checked: true,
+      addedAt: 1,
+      updatedAt: 1,
+    };
+
+    function renderSync(initial: GroceryItem[]) {
+      let items = initial;
+      const hook = renderHook(() =>
+        useGoogleSheetsSync({
+          localItems: items,
+          onItemsChange: update => {
+            items = typeof update === 'function' ? update(items) : update;
+          },
+          userEmail: 'me@example.com',
+        })
+      );
+      return { hook, read: () => items };
+    }
+
+    beforeEach(() => {
+      window.localStorage.removeItem('google-sheets-pending-deletes');
+    });
+
+    it('puts a tombstoned item back with a newer timestamp so it beats its own tombstone on the next merge', () => {
+      const tombstone = { ...item, isTombstone: true, updatedAt: 2 };
+      const { hook, read } = renderSync([tombstone]);
+
+      act(() => hook.result.current.restoreItems([item]));
+
+      const restored = read()[0];
+      expect(read()).toHaveLength(1);
+      expect(restored.isTombstone).toBe(false);
+      expect(restored.updatedAt!).toBeGreaterThan(tombstone.updatedAt);
+    });
+
+    it('cancels the pending force-delete so the next sync does not filter the item straight back out', () => {
+      writePendingDeleteIds(new Set(['item-1', 'other-item']));
+      const { hook } = renderSync([]);
+
+      act(() => hook.result.current.restoreItems([item]));
+
+      const pending = readPendingDeleteIds();
+      expect(pending.has('item-1')).toBe(false);
+      expect(pending.has('other-item')).toBe(true);
+    });
+
+    it('re-adds items that were already removed from the list (bulk clear path)', () => {
+      const { hook, read } = renderSync([]);
+
+      act(() => hook.result.current.restoreItems([item]));
+
+      expect(read().map(i => i.id)).toEqual(['item-1']);
     });
   });
 });

@@ -5,7 +5,6 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Plus, X, Sparkle } from '@phosphor-icons/react'
 import type { GroceryItem, ItemRelationship } from '@/lib/types'
-import { toast } from 'sonner'
 
 interface SmartSuggestionsProps {
   items: GroceryItem[]
@@ -72,7 +71,6 @@ export function SmartSuggestions({ items, relationships, onAddItem, onDismiss }:
 
   const handleAdd = (itemName: string) => {
     onAddItem(itemName)
-    toast.success(`Added ${itemName} from suggestions`)
   }
 
   return (

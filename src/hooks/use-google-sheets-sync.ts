@@ -100,6 +100,7 @@ interface UseGoogleSheetsSyncReturn {
   syncNow: () => Promise<void>;
   createDeletionTombstone: (itemId: string) => void;
   deleteItemsPermanently: (itemIds: string[]) => void;
+  restoreItems: (items: GroceryItem[]) => void;
   lastSyncTime: number | null;
   error: string | null;
 }
@@ -654,6 +655,33 @@ export function useGoogleSheetsSync({
     syncNow().catch(console.error);
   }, [onItemsChange, syncNow]);
 
+  // Undo for either delete path: cancel any pending force-delete for these ids
+  // and put the items back with a fresh timestamp, so they beat their own
+  // tombstone/deleted row when the next sync merges.
+  const restoreItems = useCallback((items: GroceryItem[]) => {
+    if (items.length === 0) return;
+
+    const pending = readPendingDeleteIds();
+    items.forEach(item => pending.delete(item.id));
+    writePendingDeleteIds(pending);
+
+    const restored = items.map(item => ({
+      ...item,
+      isTombstone: false,
+      updatedAt: Date.now(),
+      updatedBy: userIdRef.current,
+    }));
+
+    onItemsChange((prev: GroceryItem[] | undefined) => {
+      const byId = new Map(restored.map(item => [item.id, item]));
+      const existing = new Set((prev ?? []).map(item => item.id));
+      return [
+        ...(prev ?? []).map(item => byId.get(item.id) ?? item),
+        ...restored.filter(item => !existing.has(item.id)),
+      ];
+    });
+  }, [onItemsChange]);
+
   return {
     config: config ?? null,
     setConfig,
@@ -666,6 +694,7 @@ export function useGoogleSheetsSync({
     syncNow,
     createDeletionTombstone,
     deleteItemsPermanently,
+    restoreItems,
     lastSyncTime: syncState.lastSyncAt || null,
     error,
   };

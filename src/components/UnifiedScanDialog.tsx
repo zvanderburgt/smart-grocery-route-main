@@ -8,8 +8,7 @@ import { Camera, Check, Scan, X } from '@phosphor-icons/react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { toast } from 'sonner'
 import { learnBarcode, lookupBarcodeWithLearning, isValidBarcode } from '@/lib/barcode-database'
-import { normalizeOCRTextToLines } from '@/lib/ocr-text'
-import { extractGroceryItemsWithOpenRouter, extractGroceryItemsWithAutoSelect, hasOpenRouterApiKey, getOpenRouterApiKey, setOpenRouterApiKey, getSelectedOpenRouterModel, getAutoSelectModel } from '@/lib/ocr-openrouter'
+import { extractGroceryItemsWithOpenRouter, extractGroceryItemsWithAutoSelect, hasOpenRouterApiKey, getOpenRouterApiKey, setOpenRouterApiKey, getSelectedOpenRouterModel, getAutoSelectModel, type ExtractedItem } from '@/lib/ocr-openrouter'
 import { OCRErrorDialog } from '@/components/OCRErrorDialog'
 import { OCRScanAnimation } from '@/components/OCRScanAnimation'
 import type { LearnedBrand } from '@/lib/types'
@@ -26,19 +25,41 @@ const SCANNER_ELEMENT_ID = 'unified-scan-reader'
 
 const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms))
 
+const itemsToText = (items: ExtractedItem[]) =>
+  items.map(({ item, quantity }) => (quantity > 1 ? `${quantity} x ${item}` : item)).join('\n')
+
+const QUANTITY_PATTERNS = [
+  { re: /^(\d+)\s*x\s+(.+)$/i, quantityFirst: true },
+  { re: /^(.+)\s*x\s*(\d+)$/i, quantityFirst: false },
+  { re: /^(\d+)\s+(.+)$/, quantityFirst: true },
+]
+
+export function parseQuantityFromText(text: string): { name: string; quantity: number } {
+  for (const { re, quantityFirst } of QUANTITY_PATTERNS) {
+    const match = text.match(re)
+    if (match) {
+      const [name, quantity] = quantityFirst ? [match[2], match[1]] : [match[1], match[2]]
+      return { name: name.trim(), quantity: parseInt(quantity, 10) }
+    }
+  }
+
+  return { name: text.trim(), quantity: 1 }
+}
+
 export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtracted, learnedBrands }: UnifiedScanDialogProps) {
   const [isScanning, setIsScanning] = useState(false)
   const [isLookingUp, setIsLookingUp] = useState(false)
   const [isProcessingOCR, setIsProcessingOCR] = useState(false)
   const [step, setStep] = useState<'scan' | 'review'>('scan')
   const [extractedText, setExtractedText] = useState('')
+  const [extractedItems, setExtractedItems] = useState<ExtractedItem[]>([])
   const [lastDetectedBarcode, setLastDetectedBarcode] = useState('')
   const [lastDetectedProduct, setLastDetectedProduct] = useState('')
   const [pendingUnknownBarcode, setPendingUnknownBarcode] = useState('')
   const [manualProductName, setManualProductName] = useState('')
 
   const [showErrorDialog, setShowErrorDialog] = useState(false)
-  const [errorType, setErrorType] = useState<'no_items' | 'image_too_large' | 'empty_response' | 'invalid_format' | 'llm_error' | 'model_load_error' | 'general'>('general')
+  const [errorType, setErrorType] = useState<'no_items' | 'llm_error' | 'general'>('general')
   const [errorMessage, setErrorMessage] = useState<string>()
   const [capturedPreviewImage, setCapturedPreviewImage] = useState('')
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
@@ -62,6 +83,7 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
   const resetState = () => {
     setStep('scan')
     setExtractedText('')
+    setExtractedItems([])
     setLastDetectedBarcode('')
     setLastDetectedProduct('')
     setPendingUnknownBarcode('')
@@ -119,7 +141,6 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
         pendingUnknownBarcodeRef.current = barcode
         setPendingUnknownBarcode(barcode)
         setManualProductName('')
-        toast.info('Unknown barcode. Add a name to save it for next time.')
         return
       }
 
@@ -127,7 +148,6 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
       setLastDetectedProduct(productName)
 
       onProductScanned(productName)
-      toast.success(`Scanned: ${productName}`)
     } catch (error) {
       console.error('Barcode lookup failed:', error)
       toast.error('Could not process barcode')
@@ -150,7 +170,6 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
     setLastDetectedBarcode(pendingUnknownBarcode)
     setLastDetectedProduct(productName)
     onProductScanned(productName)
-    toast.success('Saved barcode and added product')
 
     pendingUnknownBarcodeRef.current = ''
     setPendingUnknownBarcode('')
@@ -162,7 +181,6 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
     pendingUnknownBarcodeRef.current = ''
     setPendingUnknownBarcode('')
     setManualProductName('')
-    toast.info('Skipped unknown barcode')
     await startScanning()
   }
 
@@ -320,7 +338,6 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
     }
 
     setIsProcessingOCR(true)
-    toast.info('Analysing via cloud...')
 
     try {
       const capturedImage = captureCurrentFrame()
@@ -329,7 +346,7 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
 
       const items = getAutoSelectModel()
         ? await extractGroceryItemsWithAutoSelect(capturedImage)
-        : await extractGroceryItemsWithOpenRouter(capturedImage, undefined, getSelectedOpenRouterModel())
+        : await extractGroceryItemsWithOpenRouter(capturedImage, getSelectedOpenRouterModel())
 
       if (items.length === 0) {
         setErrorType('no_items')
@@ -339,9 +356,9 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
         return
       }
 
-      setExtractedText(items.join('\n'))
+      setExtractedItems(items)
+      setExtractedText(itemsToText(items))
       setStep('review')
-      toast.success(`Found ${items.length} items!`)
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error'
       console.error('OCR capture failed:', error)
@@ -367,36 +384,22 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
     toast.success('API key saved')
   }
 
-  const parseQuantityFromText = (text: string): { name: string; quantity: number } => {
-    const patterns = [
-      /^(\d+)\s*x\s+(.+)$/i,
-      /^(.+)\s*x\s*(\d+)$/i,
-      /^(\d+)\s+(.+)$/,
-      /^(\d+)\s+(?:boxes?|bags?|cans?|bottles?|jars?|packages?|packs?|containers?|items?)\s+(?:of\s+)?(.+)$/i,
-    ]
-
-    for (const pattern of patterns) {
-      const match = text.match(pattern)
-      if (match) {
-        if (pattern.source.startsWith('^(\\d+)')) {
-          return { name: match[2].trim(), quantity: parseInt(match[1], 10) }
-        }
-        return { name: match[1].trim(), quantity: parseInt(match[2], 10) }
-      }
-    }
-
-    return { name: text.trim(), quantity: 1 }
-  }
-
   const handleConfirmItems = async () => {
-    const rawItems = normalizeOCRTextToLines(extractedText)
+    // Unedited text still matches the OCR result, so use it verbatim — re-parsing
+    // it would turn names like "7 Up" into 7 units of "Up".
+    const parsedItems = extractedText === itemsToText(extractedItems)
+      ? extractedItems.map(({ item, quantity }) => ({ name: item, quantity }))
+      : extractedText
+          .split(/\r?\n/)
+          .map(line => line.trim().replace(/^[-*•·]\s*|^\d+[.)]\s*/, '').trim())
+          .filter(line => line.length > 0)
+          .map(parseQuantityFromText)
 
-    if (rawItems.length === 0) {
+    if (parsedItems.length === 0) {
       toast.error('No items to add')
       return
     }
 
-    const parsedItems = rawItems.map(parseQuantityFromText)
     const consolidated = parsedItems.reduce((acc, item) => {
       const existing = acc.find(i => i.name.toLowerCase() === item.name.toLowerCase())
       if (existing) {
@@ -408,13 +411,13 @@ export function UnifiedScanDialog({ open, onClose, onProductScanned, onItemsExtr
     }, [] as Array<{ name: string; quantity: number }>)
 
     onItemsExtracted(consolidated)
-    toast.success(`Added ${consolidated.length} items`)
 
     await handleClose()
   }
 
   const handleBackToCamera = async () => {
     setExtractedText('')
+    setExtractedItems([])
     setStep('scan')
     await startScanning()
   }

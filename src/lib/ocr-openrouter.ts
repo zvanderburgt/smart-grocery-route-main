@@ -12,16 +12,9 @@ const OPENROUTER_MODELS_CACHE_TIME_KEY = 'openrouter-models-cache-time';
 const OPENROUTER_AUTO_SELECT_KEY = 'openrouter-auto-select-model';
 
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+const OCR_TIMEOUT_MS = 60 * 1000;
 
-// Default free models that support vision (fallback if API fetch fails)
-const DEFAULT_FREE_VISION_MODELS = [
-  { id: 'minimax/minimax-m3:free', name: 'MiniMax M3 (Free)', context: 32768 },
-  { id: 'google/gemma-3-27b-it:free', name: 'Gemma 3 27B (Free)', context: 8192 },
-  { id: 'microsoft/phi-3-vision-128k-instruct:free', name: 'Phi-3 Vision 128K (Free)', context: 131072 },
-  { id: 'qwen/qwen2.5-vl-32b-instruct:free', name: 'Qwen 2.5 VL 32B (Free)', context: 32768 },
-  { id: 'meta-llama/llama-3.2-11b-vision-instruct:free', name: 'Llama 3.2 11B Vision (Free)', context: 131072 },
-  { id: 'google/gemini-flash-1.5-8b:free', name: 'Gemini Flash 1.5 8B (Free)', context: 1048576 },
-];
+const DEFAULT_MODEL_ID = 'minimax/minimax-m3:free';
 
 export interface OpenRouterModel {
   id: string;
@@ -60,9 +53,9 @@ export function hasOpenRouterApiKey(): boolean {
 
 export function getSelectedOpenRouterModel(): string {
   try {
-    return window.localStorage.getItem(OPENROUTER_SELECTED_MODEL_KEY) || 'minimax/minimax-m3:free';
+    return window.localStorage.getItem(OPENROUTER_SELECTED_MODEL_KEY) || DEFAULT_MODEL_ID;
   } catch {
-    return 'minimax/minimax-m3:free';
+    return DEFAULT_MODEL_ID;
   }
 }
 
@@ -105,15 +98,16 @@ function supportsTextAndImage(model: { architecture?: { input_modalities?: strin
 
 // Content-safety classifiers (Nemotron Safety/Content Safety, Llama Guard, ...)
 // accept images but reply with labels like "User Safety: safe", not OCR text.
-export function isSafetyModel(model: { id: string; name?: string }): boolean {
+function isSafetyModel(model: { id: string; name?: string }): boolean {
   return /safety|guard|moderation/i.test(`${model.id} ${model.name ?? ''}`);
 }
 
-function isFreeModel(model: { pricing?: Record<string, unknown> }): boolean {
+export function isFreeModel(model: { pricing?: Record<string, unknown> }): boolean {
   // Pricing values come back as strings (e.g. "0"); reject if any pricing
-  // field (image, image_output, web_search, etc.) is non-zero.
-  const pricing = model.pricing || {};
-  return Object.values(pricing).every((v) => Number(v) === 0);
+  // field (image, image_output, web_search, etc.) is non-zero. Missing or
+  // empty pricing tells us nothing, so don't assume free.
+  const values = Object.values(model.pricing || {});
+  return values.length > 0 && values.every((v) => Number(v) === 0);
 }
 
 // Looks up the model id against OpenRouter's live catalog (the source of truth
@@ -216,19 +210,17 @@ export async function getAvailableOpenRouterModels(apiKey: string, forceRefresh 
   }
 
   // Fetch fresh models
-  let models = await fetchModelsFromOpenRouter(apiKey);
+  const models = await fetchModelsFromOpenRouter(apiKey);
 
-  // Fallback to defaults if API fails or returns no models
-  if (models.length === 0) {
-    models = DEFAULT_FREE_VISION_MODELS;
-  }
-
-  // Cache the results
-  try {
-    window.localStorage.setItem(OPENROUTER_CACHED_MODELS_KEY, JSON.stringify(models));
-    window.localStorage.setItem(OPENROUTER_MODELS_CACHE_TIME_KEY, Date.now().toString());
-  } catch {
-    // Ignore cache errors
+  // Only cache a list that genuinely came back, so one failed fetch can't
+  // pin the app to a stale list for 24 hours.
+  if (models.length > 0) {
+    try {
+      window.localStorage.setItem(OPENROUTER_CACHED_MODELS_KEY, JSON.stringify(models));
+      window.localStorage.setItem(OPENROUTER_MODELS_CACHE_TIME_KEY, Date.now().toString());
+    } catch {
+      // Ignore cache errors
+    }
   }
 
   return models;
@@ -252,23 +244,29 @@ export interface ExtractedItem {
   quantity: number;
 }
 
+// Callers (auto-select) need to tell account-level failures from model-level
+// ones, so the HTTP status rides along on the Error.
+function apiError(message: string, status: number): Error {
+  return Object.assign(new Error(message), { status });
+}
+
 export async function extractGroceryItemsWithOpenRouter(
   imageDataUrl: string,
-  onProgress?: (status: string, progress: number) => void,
   modelId?: string
-): Promise<string[]> {
+): Promise<ExtractedItem[]> {
   const apiKey = getOpenRouterApiKey();
   if (!apiKey) {
     throw new Error('OpenRouter API key not configured');
   }
 
   const model = modelId || getSelectedOpenRouterModel();
-
-  onProgress?.('Connecting to cloud OCR...', 10);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OCR_TIMEOUT_MS);
 
   try {
     const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -299,27 +297,24 @@ export async function extractGroceryItemsWithOpenRouter(
       }),
     });
 
-    onProgress?.('Processing image...', 50);
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
       
       if (response.status === 401) {
-        throw new Error('Invalid API key. Please check your OpenRouter API key.');
+        throw apiError('Invalid API key. Please check your OpenRouter API key.', 401);
       }
       if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again in a moment.');
+        throw apiError('Rate limit exceeded. Please try again in a moment.', 429);
       }
       if (response.status === 402) {
-        throw new Error('Insufficient credits. Please add credits to your OpenRouter account.');
+        throw apiError('Insufficient credits. Please add credits to your OpenRouter account.', 402);
       }
-      
-      throw new Error(`OpenRouter API error: ${errorMessage}`);
+
+      throw apiError(`OpenRouter API error: ${errorMessage}`, response.status);
     }
 
     const data = await response.json();
-    onProgress?.('Parsing results...', 90);
 
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
@@ -328,14 +323,18 @@ export async function extractGroceryItemsWithOpenRouter(
 
     // Parse the JSON response
     const items = parseItemsFromResponse(content);
-    onProgress?.('Complete', 100);
 
     return items;
   } catch (error) {
+    if ((error as { name?: string })?.name === 'AbortError') {
+      throw new Error('Request timed out. The model took too long to respond.');
+    }
     if (error instanceof Error) {
       throw error;
     }
     throw new Error('Failed to connect to OpenRouter. Please check your internet connection.');
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -344,33 +343,39 @@ export async function extractGroceryItemsWithOpenRouter(
 // refreshes the list from OpenRouter once and retries from the top.
 export async function extractGroceryItemsWithAutoSelect(
   imageDataUrl: string,
-  onProgress?: (status: string, progress: number) => void,
-): Promise<string[]> {
+): Promise<ExtractedItem[]> {
   const apiKey = getOpenRouterApiKey();
   if (!apiKey) {
     throw new Error('OpenRouter API key not configured');
   }
 
-  let lastError: Error = new Error('No free models available');
+  let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const models = await getAvailableOpenRouterModels(apiKey, attempt > 0);
 
     for (const model of models) {
       try {
-        const items = await extractGroceryItemsWithOpenRouter(imageDataUrl, onProgress, model.id);
+        const items = await extractGroceryItemsWithOpenRouter(imageDataUrl, model.id);
         setSelectedOpenRouterModel(model.id);
         return items;
       } catch (error) {
+        // 401/402 are account-level: no other model can succeed, so stop now.
+        const status = (error as { status?: number })?.status;
+        if (status === 401 || status === 402) {
+          throw error;
+        }
         lastError = error instanceof Error ? error : new Error(String(error));
       }
     }
   }
 
-  throw lastError;
+  throw lastError ?? new Error(
+    'Could not load free vision models from OpenRouter. Check your internet connection, or pick a model manually in Settings.'
+  );
 }
 
-function parseItemsFromResponse(content: string): string[] {
+export function parseItemsFromResponse(content: string): ExtractedItem[] {
   try {
     // Try to extract JSON from the response
     let jsonStr = content.trim();
@@ -391,22 +396,17 @@ function parseItemsFromResponse(content: string): string[] {
       return [];
     }
 
-    const items: string[] = [];
+    const items: ExtractedItem[] = [];
     
     for (const item of parsed) {
       if (typeof item === 'string' && item.trim()) {
-        items.push(item.trim());
+        items.push({ item: item.trim(), quantity: 1 });
       } else if (typeof item === 'object' && item !== null) {
         const itemName = item.item || item.name || item.text;
-        const quantity = item.quantity || item.qty || item.count || 1;
+        const quantity = Number(item.quantity || item.qty || item.count || 1) || 1;
         
         if (itemName && typeof itemName === 'string') {
-          const cleanName = itemName.trim();
-          if (quantity > 1) {
-            items.push(`${cleanName} x${quantity}`);
-          } else {
-            items.push(cleanName);
-          }
+          items.push({ item: itemName.trim(), quantity });
         }
       }
     }
@@ -421,6 +421,6 @@ function parseItemsFromResponse(content: string): string[] {
       .map(line => line.trim())
       .filter(line => line.length > 0 && !line.startsWith('{') && !line.startsWith('[') && !line.startsWith('```'));
     
-    return lines.slice(0, 20); // Limit to 20 items as safety measure
+    return lines.slice(0, 20).map(line => ({ item: line, quantity: 1 })); // Limit to 20 items as safety measure
   }
 }

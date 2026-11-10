@@ -9,7 +9,9 @@ Status: **Laya (Phases 2–3) shelved by decision. Everything else below is done
 | Phase 1: keyword/brand fixes | done, 64.9% → 96.2% on the fixture (rightmost-keyword + frozen/canned override + word-boundary matching + keyword dedupe) |
 | Option A: corrections stay in front | done, and fixed a reverse-substring bug in learned-brand matching (`oat milk` correction no longer captures plain `milk`) |
 | Phase 2/3: Laya | shelved. Keyword matcher is already ~96% on the fixture; revisit only if real data shows a gap |
-| **Open:** replace synthetic fixture with real `item-category-hints` | needs data from the user's browser, see below |
+| Review round 2 (independent reviewer + blind held-out set) | done. Fixed: add/import path bypassed `categorizeItem` and locked weak-brand results; exact-name corrections ignored on re-add; `addManualBrand` brands inert (occurrences 1 < trust bar 2); `learnFromPattern` learned plain nouns on every render; corrections not persisted; learned brands leaked mid-name (`cream` → `ice cream`); `-ies` plurals; `organizeList` keyed explicit categories by name; "Automatic (X)" label ignored learned brands; dead `EditItemDialog` deleted |
+| Vocabulary expansion (done blind to held-out set) | done, +507 keywords, +118 brands. **Held-out: 76.1% → 89.1%**, `other` 43 → 13 of 247. Tuning set 97.6% |
+| **Open:** replace synthetic fixtures with real `item-category-hints` | needs data from the user's browser, see below |
 
 Export real corrections: in the app tab's DevTools console run
 `copy(localStorage.getItem('item-category-hints'))`, then turn the `{name: category}` pairs into

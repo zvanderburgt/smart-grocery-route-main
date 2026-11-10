@@ -294,11 +294,6 @@ function App() {
     )
 
     setItems(currentItems => [...(currentItems ?? []), newItem])
-    if (quantity > 1) {
-      toast.success(`Added ${quantity} ${name}`)
-    } else {
-      toast.success(`Added ${name}`)
-    }
   }
 
   const openOtherCategoryDialog = (name: string, quantity: number) => {
@@ -327,7 +322,6 @@ function App() {
 
     handleAddBrand(brand, pendingMappedCategory)
     addParsedItemToList(pendingOtherItem.name, pendingOtherItem.quantity, pendingMappedCategory)
-    toast.success(`Mapped ${brand} to ${STORE_CATEGORIES[pendingMappedCategory].name}`)
     resetOtherCategoryDialog()
   }
 
@@ -335,7 +329,6 @@ function App() {
     if (!pendingOtherItem) return
     const itemName = pendingOtherItem.name
     addParsedItemToList(itemName, pendingOtherItem.quantity, pendingMappedCategory)
-    toast.success(`Mapped ${itemName} to ${STORE_CATEGORIES[pendingMappedCategory].name}`)
     resetOtherCategoryDialog()
   }
 
@@ -354,7 +347,6 @@ function App() {
             : i
         )
       )
-      toast.success(`Updated ${parsed.name} (${(existingItem.quantity ?? 1) + parsed.quantity} total)`)
     } else {
       const category = inferCategory(parsed.name)
 
@@ -427,10 +419,15 @@ function App() {
   }, [sections, collapseSectionIfComplete, setItems, googleSheetsSync.userEmail])
 
   const deleteItem = useCallback((id: string) => {
+    const deleted = safeItems.find(item => item.id === id)
     // Create tombstone for sync instead of just filtering
     googleSheetsSync.createDeletionTombstone(id);
-    toast.success('Item removed');
-  }, [setItems, googleSheetsSync.createDeletionTombstone])
+    if (deleted) {
+      toast(`Removed ${deleted.name}`, {
+        action: { label: 'Undo', onClick: () => googleSheetsSync.restoreItems([deleted]) },
+      })
+    }
+  }, [safeItems, googleSheetsSync.createDeletionTombstone, googleSheetsSync.restoreItems])
 
   const editItem = useCallback((id: string, newName: string) => {
     const safeName = sanitizeInput(newName)
@@ -443,7 +440,6 @@ function App() {
           : item
       )
     )
-    toast.success('Item updated')
   }, [setItems, googleSheetsSync.userEmail])
 
   const handleQuantityChange = useCallback((id: string, quantity: number) => {
@@ -489,7 +485,6 @@ function App() {
       }
     }
 
-    toast.success('Item category updated')
   }, [safeItems, setItems, setItemCategoryHints, setLearnedBrands, brandLearning, googleSheetsSync.userEmail])
 
   const handleIncreaseQuantity = (itemName: string, amount: number) => {
@@ -510,7 +505,6 @@ function App() {
             : item
         )
       )
-      toast.success(`Increased ${matchingItem.name} to ${newQuantity}`)
     } else {
       toast.error(`Item "${itemName}" not found`)
     }
@@ -537,11 +531,6 @@ function App() {
         )
       )
 
-      if (newQuantity === 1 && currentQty - amount < 1) {
-        toast.success(`${matchingItem.name} quantity is now 1 (minimum)`)
-      } else {
-        toast.success(`Decreased ${matchingItem.name} to ${newQuantity}`)
-      }
     } else {
       toast.error(`Item "${itemName}" not found`)
     }
@@ -564,7 +553,6 @@ function App() {
             : item
         )
       )
-      toast.success(`Set ${matchingItem.name} to ${amount}`)
     } else {
       toast.error(`Item "${itemName}" not found`)
     }
@@ -583,7 +571,6 @@ function App() {
               : i
           )
         )
-        toast.success(`Updated ${item.name} (${(existingItem.quantity ?? 1) + item.quantity} total)`)
       } else {
         const finalCategory = inferCategory(item.name)
 
@@ -664,7 +651,6 @@ function App() {
     handleOCRItems(consolidatedItems)
     setBulkAddText('')
     setIsBulkTextOpen(false)
-    toast.success(`Added ${consolidatedItems.length} items`)
   }
 
   const handleRecipeItems = (
@@ -811,10 +797,10 @@ function App() {
     // Bulk clear: wipe these rows off the sheet right away instead of leaving
     // them as lingering tombstone rows (see deleteItemsPermanently for the trade-off).
     googleSheetsSync.deleteItemsPermanently(completedItems.map(item => item.id));
-    
-    if (completedItems.length < 2) {
-      toast.success(`Cleared ${completedItems.length} items`)
-    }
+    // shortcut: Undo restores the items but not the trip/learning data recorded above; upgrade when learning data gets its own rollback.
+    toast(`Cleared ${completedItems.length} items`, {
+      action: { label: 'Undo', onClick: () => googleSheetsSync.restoreItems(completedItems) },
+    })
   }
 
   const recordTripAndClear = () => {
@@ -841,11 +827,14 @@ function App() {
   }
 
   const handleConfirmClear = () => {
+    const cleared = safeItems
     // Bulk clear: wipe every row off the sheet right away instead of leaving
     // them as lingering tombstone rows (see deleteItemsPermanently for the trade-off).
-    googleSheetsSync.deleteItemsPermanently(safeItems.map(item => item.id));
+    googleSheetsSync.deleteItemsPermanently(cleared.map(item => item.id));
     setShowClearConfirm(false)
-    toast.success('List cleared')
+    toast(`Cleared ${cleared.length} items`, {
+      action: { label: 'Undo', onClick: () => googleSheetsSync.restoreItems(cleared) },
+    })
   }
 
   const reorganizeList = () => {
@@ -857,7 +846,6 @@ function App() {
       ...(currentNames ?? {}),
       [sectionId]: newName
     }))
-    toast.success('Section renamed!')
   }
 
   const handleReorderSections = (newSections: Section[]) => {
@@ -882,8 +870,6 @@ function App() {
 
     if (matchingSection) {
       setFilteredSection(matchingSection.id)
-      const displayName = matchingSection.customName || matchingSection.name
-      toast.success(`Showing ${displayName} section`)
     } else {
       toast.error(`Section "${sectionName}" not found`)
     }
@@ -917,7 +903,6 @@ function App() {
             return nextItems
           }
         )
-        toast.success(`Checked off ${matchingItem.name}`)
       }
     } else {
       toast.error(`Item "${itemName}" not found`)
@@ -944,7 +929,6 @@ function App() {
               : item
           )
         )
-        toast.success(`Unchecked ${matchingItem.name}`)
       }
     } else {
       toast.error(`Item "${itemName}" not found`)
@@ -974,7 +958,6 @@ function App() {
           break
         case 'clear_completed':
           clearCompleted()
-          toast.success('Voice command: Clear completed')
           break
         case 'clear_all':
           clearAll()
@@ -984,18 +967,15 @@ function App() {
           break
         case 'show_all':
           setFilteredSection(null)
-          toast.success('Showing all sections')
           break
         case 'reorganize':
           reorganizeList()
           break
         case 'show_stats':
           setShowStats(true)
-          toast.success('Voice command: Show stats')
           break
         case 'show_favorites':
           setIsFavoritesOpen(true)
-          toast.success('Voice command: Show favorites')
           break
         default:
           break
@@ -1144,10 +1124,7 @@ function App() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setFilteredSection(null)
-                  toast.success('Showing all sections')
-                }}
+                onClick={() => setFilteredSection(null)}
                 className="text-xs"
               >
                 Clear Filter

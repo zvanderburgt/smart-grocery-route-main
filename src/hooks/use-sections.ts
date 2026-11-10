@@ -4,7 +4,6 @@ import type { GroceryItem, StoreCategory, Section } from "@/lib/types";
 import { STORE_CATEGORIES } from "@/lib/category-mapper";
 import { toTitleCase } from "@/lib/utils";
 import { GroceryLearningAlgorithm } from "@/lib/learning-algorithm";
-import { toast } from "sonner";
 
 interface UseSectionsReturn {
   sections: Section[];
@@ -113,7 +112,6 @@ export function useSections(
       }));
 
       setSectionOrder((current) => [...(current ?? []), sectionId]);
-      toast.success(`Section "${titleCaseName}" created`);
     },
     [setCustomSectionNames, setSectionOrder],
   );
@@ -129,7 +127,6 @@ export function useSections(
         [sectionId]: titleCaseName,
       }));
 
-      toast.success("Section renamed");
     },
     [setCustomSectionNames],
   );

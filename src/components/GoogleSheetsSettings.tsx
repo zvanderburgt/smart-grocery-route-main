@@ -120,7 +120,6 @@ export function GoogleSheetsSettings({
       return
     }
     onSyncNow()
-    toast.success('Sync started')
   }
 
   const handleConnect = () => {
@@ -134,7 +133,6 @@ export function GoogleSheetsSettings({
   const handleDisconnect = () => {
     setShowDisconnectConfirm(false)
     onDisconnect()
-    toast.success('Disconnected from Google Sheets')
   }
 
   const isConnected = syncState.status !== 'disconnected' && syncState.status !== 'error'

@@ -6,12 +6,11 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 interface OCRErrorDialogProps {
   open: boolean
   onClose: () => void
-  errorType: 'no_items' | 'image_too_large' | 'empty_response' | 'invalid_format' | 'llm_error' | 'model_load_error' | 'general'
+  errorType: 'no_items' | 'llm_error' | 'general'
   errorMessage?: string
-  imageSizeKB?: number
 }
 
-export function OCRErrorDialog({ open, onClose, errorType, errorMessage, imageSizeKB }: OCRErrorDialogProps) {
+export function OCRErrorDialog({ open, onClose, errorType, errorMessage }: OCRErrorDialogProps) {
   const getErrorDetails = () => {
     switch (errorType) {
       case 'no_items':
@@ -31,67 +30,6 @@ export function OCRErrorDialog({ open, onClose, errorType, errorMessage, imageSi
           icon: '🔍'
         }
       
-      case 'image_too_large':
-        return {
-          title: 'Image Too Large',
-          description: imageSizeKB 
-            ? `The cropped image is ${imageSizeKB}KB, which exceeds the limit for AI processing.`
-            : 'The image is too large for AI processing.',
-          suggestions: [
-            'Crop a much smaller area - focus only on the text',
-            'Remove any margins, borders, or extra space around the list',
-            'If the list is long, try processing it in sections',
-            'Avoid including backgrounds, tables, or decorative elements',
-            'Recommended: crop should be just the list text, nothing else',
-            'Target image size: under 150KB after cropping'
-          ],
-          icon: '📏'
-        }
-      
-      case 'empty_response':
-        return {
-          title: 'AI Returned Empty Response',
-          description: 'The AI processed the image but did not return any result. This usually means the image was too large or unclear.',
-          suggestions: [
-            'Try a smaller crop area with only the text visible',
-            'Ensure the cropped area contains clear, readable text',
-            'Test with one of the sample images to verify the system is working',
-            'If the list is long, split it into multiple smaller images',
-            'Check that the image quality is sufficient',
-            'Avoid images with very low resolution'
-          ],
-          icon: '❌'
-        }
-      
-      case 'invalid_format':
-        return {
-          title: 'AI Response Format Error',
-          description: 'The AI returned a response in an unexpected format. This can happen with very unclear images.',
-          suggestions: [
-            'Try a different crop area',
-            'Ensure the image contains a clear list of items',
-            'Test with a sample image first',
-            'Check that the text is legible',
-            'Avoid images with complex layouts or tables',
-            'Use a simpler, cleaner source image'
-          ],
-          icon: '⚠️'
-        }
-      
-      case 'model_load_error':
-        return {
-          title: 'AI Model Failed to Load',
-          description: errorMessage || 'The on-device AI model could not be loaded. This may be due to a network issue or insufficient device memory.',
-          suggestions: [
-            'Check your internet connection — the model downloads on first use (~256MB)',
-            'Ensure you have at least 1GB of free RAM',
-            'Try refreshing the page and attempting again',
-            'Chrome or Edge with WebGPU support will be faster than other browsers',
-            'If the problem persists, try a different browser'
-          ],
-          icon: '🤖'
-        }
-
       case 'llm_error':
         return {
           title: 'AI Processing Error',

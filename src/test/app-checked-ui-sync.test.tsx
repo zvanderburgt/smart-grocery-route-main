@@ -15,6 +15,7 @@ vi.mock('@/hooks/use-google-sheets-sync', () => ({
     syncNow: vi.fn(),
     createDeletionTombstone: vi.fn(),
     deleteItemsPermanently: vi.fn(),
+    restoreItems: vi.fn(),
     lastSyncTime: null,
     error: null,
   }),

@@ -65,8 +65,6 @@ export function RecipeDialog({ open, onClose, onRecipeParsed }: RecipeDialogProp
       
       if (localResult && localResult.ingredients.length > 0) {
         // Successfully extracted locally!
-        toast.success(`Extracted ${localResult.ingredients.length} ingredients locally`)
-        
         const title = localResult.title || 'Recipe'
         const saveOptions = saveAsFavorite ? {
           save: true,
@@ -131,8 +129,6 @@ Return a JSON object with:
       } : undefined
 
       onRecipeParsed(parsed.ingredients, saveOptions)
-      toast.success(`Added ${parsed.ingredients.length} ingredients from ${title}`)
-      
       setRecipeUrl('')
       setRecipeName('')
       setSaveAsFavorite(false)
@@ -202,8 +198,6 @@ Return ONLY a JSON object with a single property "ingredients" that contains an 
       } : undefined
 
       onRecipeParsed(parsed.ingredients, saveOptions)
-      toast.success(`Added ${parsed.ingredients.length} ingredients from recipe`)
-      
       setRecipeText('')
       setRecipeName('')
       setServings(4)

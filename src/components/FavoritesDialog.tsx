@@ -6,7 +6,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { SavedRecipe } from '@/lib/types'
 import { Heart, MagnifyingGlass, Trash, Plus, Sparkle } from '@phosphor-icons/react'
-import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
@@ -41,7 +40,6 @@ export function FavoritesDialog({
 
   const handleSelect = (recipe: SavedRecipe) => {
     onSelectFavorite(recipe)
-    toast.success(`Added ${recipe.ingredients.length} ingredients from ${recipe.name}`)
     onClose()
   }
 
@@ -54,7 +52,6 @@ export function FavoritesDialog({
     if (recipeToDelete) {
       onDeleteFavorite(recipeToDelete.id)
       setRecipeToDelete(null)
-      toast.success('Recipe removed from favorites')
     }
   }
 

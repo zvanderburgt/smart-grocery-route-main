@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Generates public/icon-192.png, public/icon-512.png, public/apple-touch-icon.png
+// Generates public/icon-192.png, public/icon-512.png, public/apple-touch-icon.png,
+// public/favicon-32.png and public/favicon.svg
 // from src/icon.svg using @resvg/resvg-js (pure JS, no native deps required).
 //
 // Run: node scripts/generate-icons.mjs
@@ -13,11 +14,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
 const svgData = readFileSync(join(root, 'src', 'icon.svg'), 'utf-8');
+// SVG favicon for modern browsers (crisp at any size)
+writeFileSync(join(root, 'public', 'favicon.svg'), svgData);
+console.log('✓ public/favicon.svg');
 
 const targets = [
   { size: 512, file: 'icon-512.png' },
   { size: 192, file: 'icon-192.png' },
   { size: 180, file: 'apple-touch-icon.png' },
+  { size: 32, file: 'favicon-32.png' },
 ];
 
 for (const { size, file } of targets) {

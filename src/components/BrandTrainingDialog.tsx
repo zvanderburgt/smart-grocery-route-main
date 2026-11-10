@@ -69,13 +69,11 @@ export function BrandTrainingDialog({
 
     onAddBrand(newBrand.trim(), newCategory)
     setNewBrand('')
-    toast.success(`Added ${newBrand} to ${CATEGORIES.find(c => c.value === newCategory)?.label}`)
   }
 
   const handleUpdateBrand = (brand: string) => {
     if (editCategory) {
       onUpdateBrand(brand, editCategory)
-      toast.success('Brand category updated')
     }
     setEditingBrand(null)
     setEditCategory(null)
@@ -90,7 +88,6 @@ export function BrandTrainingDialog({
       const removed = onDeleteBrand(brandToDelete)
       setBrandToDelete(null)
       if (removed) {
-        toast.success('Brand removed')
       } else {
         toast.error('Could not remove this brand. Try again.')
       }
