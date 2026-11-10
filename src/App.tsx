@@ -7,6 +7,7 @@ import type { GroceryItem, ItemRelationship, ShoppingTrip, Section, SavedRecipe,
 import { GroceryLearningAlgorithm } from '@/lib/learning-algorithm'
 import { BrandLearningSystem } from '@/lib/brand-learning'
 import { parseItemWithQuantity, toTitleCase, sanitizeInput, normalizeItemKey } from '@/lib/utils'
+import { expandSections, findSectionsWithNewItems } from '@/lib/section-visibility'
 import { prepareItemForMutation, createNewItemWithSync, createTombstone } from '@/lib/item-mutations'
 import { GrocerySection } from '@/components/GrocerySection'
 import { StatsCard } from '@/components/StatsCard'
@@ -210,6 +211,43 @@ function App() {
     
     organizeSections()
   }, [algorithm, safeItems, safeLearnedBrands, safeItemCategoryHints, safeCustomNames, safeSectionOrder, brandLearning])
+
+  // Auto-collapse outlives the items that caused it: the flag is stored per
+  // section id, so a section that shut when its last item was checked stays shut
+  // after the list is cleared, and the next item added to it lands in a collapsed
+  // section and looks like it was never added.
+  //
+  // Baseline = the item ids already on the list at mount, so a fresh load leaves
+  // the persisted layout alone while anything added afterwards re-opens its
+  // section.
+  const seenSectionItemIdsRef = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    if (!seenSectionItemIdsRef.current) {
+      seenSectionItemIdsRef.current = new Set(safeItems.map(item => item.id))
+    }
+    // Mount-only; later list changes are handled by the sections effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    // The organizer runs asynchronously, so sections stay empty for a moment
+    // after load — nothing to compare against until they exist.
+    if (sections.length === 0) return
+
+    const previouslySeenItemIds = seenSectionItemIdsRef.current ?? new Set<string>()
+    seenSectionItemIdsRef.current = new Set(
+      sections.flatMap(section => section.items.map(item => item.id))
+    )
+
+    const sectionsWithNewItems = findSectionsWithNewItems(sections, previouslySeenItemIds)
+    if (sectionsWithNewItems.length === 0) return
+
+    const expanded = expandSections(
+      collapsedSections,
+      sectionsWithNewItems.map(section => section.id)
+    )
+    if (expanded) setCollapsedSections(expanded)
+  }, [sections, collapsedSections, setCollapsedSections])
   
   const progress = useMemo(() => {
     if (safeItems.length === 0) return 0
