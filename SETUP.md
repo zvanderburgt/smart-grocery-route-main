@@ -328,7 +328,7 @@ Notes:
 | Issue | Solution |
 |-------|----------|
 | **Port 5173 in use** | Run `npm run kill` or change port in `vite.config.ts` |
-| **"Google Client ID not configured"** | Verify `.env` has `VITE_GOOGLE_CLIENT_ID` and restart dev server |
+| **"Google Sign-In not configured"** | `VITE_GOOGLE_CLIENT_ID` was missing at build time. Locally: put it in `.env` and restart the dev server. Hosted: set it in the platform's environment variables — it is baked in at build time, so a redeploy is required. Hosted builds now fail fast instead of shipping a dead Connect button. |
 | **"Please enter a Google Sheet ID first"** | Paste Sheet ID in Settings before clicking Connect |
 | **"Connection failed" / "Sync failed"** | Check browser console; verify Sheet shared as Editor; verify Sheets API enabled |
 | **"Invalid Sheet ID"** | Ensure you copied the 44-char ID from URL correctly |

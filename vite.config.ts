@@ -31,6 +31,29 @@ const openCodeRelay: ProxyOptions = {
   },
 };
 
+// Fail a hosted build when the OAuth client ID is missing. It is baked into the
+// bundle at build time, so without it the app ships with a Connect button that
+// only toasts "Google Sign-In not configured" - which is exactly how production
+// ended up broken once already. Local builds only warn, so the PWA can still be
+// built without Google Sheets.
+const hostedBuildEnv = loadEnv("production", projectRoot, "");
+const googleClientId =
+  process.env.VITE_GOOGLE_CLIENT_ID || hostedBuildEnv.VITE_GOOGLE_CLIENT_ID || "";
+const isHostedBuild = Boolean(
+  process.env.NETLIFY || process.env.NETLIFY_BUILD_BASE || process.env.CI
+);
+
+if (!googleClientId) {
+  const message =
+    "VITE_GOOGLE_CLIENT_ID is not set. Google Sheets sync would be dead in this " +
+    "build (Connect only toasts 'Google Sign-In not configured'). Set it under " +
+    "Site configuration -> Environment variables, then redeploy.";
+  if (isHostedBuild) {
+    throw new Error(message);
+  }
+  console.warn(`[breadcrumb] ${message}`);
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   server: {

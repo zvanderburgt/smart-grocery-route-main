@@ -484,8 +484,10 @@ export function useGoogleSheetsSync({
       throw new Error('No sheet ID');
     }
     if (!GOOGLE_CLIENT_ID) {
-      setError('Google Client ID not configured');
-      toast.error('Google Sign-In not configured');
+      setError('Google Sign-In not configured for this build');
+      // Name the variable: this build-time setting is the only cause, and the
+      // toast is the only place a user finds out.
+      toast.error('Google Sign-In not configured (VITE_GOOGLE_CLIENT_ID missing)');
       throw new Error('No Client ID');
     }
 
