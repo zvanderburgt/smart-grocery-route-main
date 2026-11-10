@@ -267,8 +267,20 @@ npm run dev
 The dev server proxies `/api/opencode` → `https://opencode.ai/zen/go/v1` and
 injects the key, so the endpoint default and an empty API key field both work.
 
-**Deployed** — deploy the relay in `relay/` (Cloudflare Worker, one file, free
-tier):
+**Netlify** — the repo ships a function that does the same job at the same path
+the app already defaults to, so there is nothing to configure in the app:
+
+```bash
+# Netlify UI -> Site configuration -> Environment variables
+OPENCODE_API_KEY=your-opencode-key
+```
+
+`netlify/functions/opencode-ocr.mts` plus the `/api/opencode/*` rewrite in
+`netlify.toml` serve `/api/opencode/chat/completions` same-origin, and the key
+stays on the server. Leave the app's API key field empty in that case.
+
+**Other static hosts** — deploy the relay in `relay/` (Cloudflare Worker, one
+file, free tier):
 
 ```bash
 npx wrangler secret put OPENCODE_API_KEY
@@ -280,8 +292,13 @@ the Worker holds it. Full instructions: [`relay/README.md`](relay/README.md).
 
 Notes:
 
-- Model discovery (`GET /models`, filtered to image-capable models) goes straight
-  from the browser; only the OCR request itself uses the relay.
+- Model discovery (`GET /models`) is fetched straight from
+  `https://opencode.ai/zen/go/v1/models`, never through the relay: that endpoint
+  is public and CORS-enabled, and routing it through the relay made a deployment
+  without one report "no image-capable models" instead of showing the catalog.
+- The list is filtered to models whose `modalities.input` includes an `image/*`
+  type. A model that exists but takes no image is reported as such, which is a
+  different message from "not in the list".
 - Reasoning models spend output tokens before answering. The client asks for 2048
   `max_tokens` to leave room; if a model still returns an empty answer the app
   says so instead of silently returning zero items.

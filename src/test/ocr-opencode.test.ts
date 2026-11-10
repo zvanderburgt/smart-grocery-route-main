@@ -2,6 +2,9 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   DEFAULT_OPENCODE_ENDPOINT,
   DEFAULT_OPENCODE_MODEL,
+  OPENCODE_CATALOG_URL,
+  getOpenCodeCatalog,
+  validateOpenCodeModel,
   extractGroceryItemsWithOpenCode,
   getAvailableOpenCodeModels,
   getOpenCodeEndpoint,
@@ -198,6 +201,84 @@ describe("extractGroceryItemsWithOpenCode", () => {
 
     await expect(extractGroceryItemsWithOpenCode("data:image/jpeg;base64,AAAA")).rejects.toThrow(
       /CORS/
+    );
+  });
+});
+
+describe('catalog discovery', () => {
+  it('reads the model list from opencode.ai, not through the relay', async () => {
+    // Regression: discovery used to go through the configured endpoint, so any
+    // deployment without a relay reported "no vision models" instead of the
+    // (public, CORS-enabled) catalog.
+    setOpenCodeEndpoint('https://my-relay.example.com');
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => catalog });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await getOpenCodeCatalog();
+
+    expect(fetchMock.mock.calls[0][0]).toBe(OPENCODE_CATALOG_URL);
+    expect(result.models.map((model) => model.id)).toEqual(['glm-5.3-flash', 'minimax-m3']);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('reports why the catalog is empty instead of pretending nothing is vision-capable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
+
+    const result = await getOpenCodeCatalog();
+
+    expect(result.models).toEqual([]);
+    expect(result.error).toMatch(/HTTP 404/);
+  });
+});
+
+describe('model validation', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => catalog })
+    );
+  });
+
+  it('accepts a model that declares image input', async () => {
+    await expect(validateOpenCodeModel('glm-5.3-flash')).resolves.toMatchObject({ valid: true });
+  });
+
+  it('distinguishes "exists but has no image input" from "not in the list"', async () => {
+    // deepseek-v4-pro is in the fixture catalog with text-only input
+    await expect(validateOpenCodeModel('deepseek-v4-pro')).resolves.toMatchObject({
+      valid: false,
+      reason: expect.stringMatching(/does not accept images/),
+    });
+
+    await expect(validateOpenCodeModel('not-a-real-model')).resolves.toMatchObject({
+      valid: false,
+      reason: expect.stringMatching(/Not in the OpenCode model list/),
+    });
+  });
+
+  it('carries a catalog failure into the validation reason', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    const result = await validateOpenCodeModel('glm-5.3-flash');
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/Could not reach the OpenCode model list/);
+  });
+});
+
+describe('missing relay', () => {
+  it('says the deployment has no relay when the endpoint 404s', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { message: 'Not Found' } }),
+      })
+    );
+
+    await expect(extractGroceryItemsWithOpenCode('data:image/jpeg;base64,AAAA')).rejects.toThrow(
+      /No OCR relay/
     );
   });
 });

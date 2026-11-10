@@ -14,7 +14,7 @@ import { GearSix, Download, Trash, ArrowClockwise, Heart, GraduationCap, ChartBa
 import { toast } from 'sonner'
 import { getOpenRouterApiKey, setOpenRouterApiKey, clearOpenRouterApiKey, hasOpenRouterApiKey, getSelectedOpenRouterModel, setSelectedOpenRouterModel, validateOpenRouterModel, getAvailableOpenRouterModels, getAutoSelectModel, setAutoSelectModel, type ModelValidationResult, type OpenRouterModel } from '@/lib/ocr-openrouter'
 import { OCR_PROVIDERS, getOcrProvider, getOcrProviderLabel, isOcrProviderConfigured, setOcrProvider, type OcrProvider } from '@/lib/ocr-provider'
-import { DEFAULT_OPENCODE_ENDPOINT, clearOpenCodeApiKey, getAvailableOpenCodeModels, getOpenCodeApiKey, getOpenCodeEndpoint, getSelectedOpenCodeModel, setOpenCodeApiKey, setOpenCodeEndpoint, setSelectedOpenCodeModel, validateOpenCodeModel, type OpenCodeModel, type OpenCodeModelValidation } from '@/lib/ocr-opencode'
+import { DEFAULT_OPENCODE_ENDPOINT, clearOpenCodeApiKey, getOpenCodeCatalog, getOpenCodeApiKey, getOpenCodeEndpoint, getSelectedOpenCodeModel, setOpenCodeApiKey, setOpenCodeEndpoint, setSelectedOpenCodeModel, validateOpenCodeModel, type OpenCodeModel, type OpenCodeModelValidation } from '@/lib/ocr-opencode'
 
 // Phones need 44px hit targets (iOS HIG / Material); `pointer-coarse` lifts the
 // controls only on touch devices so desktop rows stay compact. Note the project
@@ -118,6 +118,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
   const [openCodeEndpoint, setOpenCodeEndpointState] = useState(getOpenCodeEndpoint())
   const [openCodeModel, setOpenCodeModel] = useState(getSelectedOpenCodeModel())
   const [openCodeModels, setOpenCodeModels] = useState<OpenCodeModel[]>([])
+  const [openCodeCatalogError, setOpenCodeCatalogError] = useState<string | null>(null)
   const [isLoadingOpenCodeModels, setIsLoadingOpenCodeModels] = useState(false)
   const [isCheckingOpenCodeModel, setIsCheckingOpenCodeModel] = useState(false)
   const [openCodeCheck, setOpenCodeCheck] = useState<OpenCodeModelValidation | null>(null)
@@ -173,9 +174,13 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
 
     let cancelled = false
     setIsLoadingOpenCodeModels(true)
-    getAvailableOpenCodeModels()
-      .then((models) => {
-        if (!cancelled) setOpenCodeModels(models)
+    getOpenCodeCatalog()
+      .then((catalog) => {
+        if (cancelled) return
+        setOpenCodeModels(catalog.models)
+        // Distinguish "the list could not be loaded" from "nothing in it takes
+        // an image": they used to read as the same empty dropdown.
+        setOpenCodeCatalogError(catalog.error ?? null)
       })
       .finally(() => {
         if (!cancelled) setIsLoadingOpenCodeModels(false)
@@ -790,8 +795,10 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                         placeholder={
                           isLoadingOpenCodeModels
                             ? 'Loading vision models…'
-                            : openCodeModels.length === 0
-                              ? 'No vision models found'
+                            : openCodeCatalogError
+                              ? 'Could not load model list'
+                              : openCodeModels.length === 0
+                                ? 'No image-capable models'
                               : 'Switch model…'
                         }
                       />
@@ -839,6 +846,9 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                   <p className="text-xs text-muted-foreground">
                     Only models that accept image input are listed. The key needs an OpenCode Go (or Zen) plan.
                   </p>
+                  {openCodeCatalogError && (
+                    <p className="text-xs text-destructive">{openCodeCatalogError}</p>
+                  )}
                 </div>
               </div>
             </div>

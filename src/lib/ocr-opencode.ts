@@ -124,69 +124,116 @@ interface RawOpenCodeModel {
   limit?: { context?: number };
 }
 
-export function isVisionModel(model: { modalities?: { input?: string[] } }): boolean {
+/** A model in the catalog, plus whether it can take an image. */
+export interface CatalogModel extends OpenCodeModel {
+  vision: boolean;
+}
+
+/** The `/models` endpoint is public and CORS-enabled, so the browser fetches it
+ *  straight from OpenCode. It deliberately does NOT go through the relay: the
+ *  relay only proxies chat completions, and pointing discovery at it meant a
+ *  deployment without a relay reported "no vision models" instead of showing
+ *  the catalog. */
+export const OPENCODE_CATALOG_URL = 'https://opencode.ai/zen/go/v1/models';
+
+const CACHED_CATALOG_KEY = 'opencode-cached-catalog';
+
+function hasImageInput(model: { modalities?: { input?: string[] } }): boolean {
   const input = model.modalities?.input || [];
   return input.some((modality) => modality.startsWith('image/'));
 }
 
-function toOpenCodeModel(model: RawOpenCodeModel): OpenCodeModel {
+/** Retained for callers/tests that only need the capability test. */
+export function isVisionModel(model: { modalities?: { input?: string[] } }): boolean {
+  return hasImageInput(model);
+}
+
+function toCatalogModel(model: RawOpenCodeModel): CatalogModel {
   return {
     id: model.id,
     name: model.name || model.id,
     context: model.limit?.context ?? 4096,
+    vision: hasImageInput(model),
   };
 }
 
-async function fetchModelsFromOpenCode(): Promise<OpenCodeModel[]> {
+export interface OpenCodeCatalog {
+  /** Models that can read an image, i.e. the ones worth offering for OCR. */
+  models: OpenCodeModel[];
+  /** Every model in the catalog, vision or not, for validation messages. */
+  all: CatalogModel[];
+  /** Set when the catalog could not be loaded at all. */
+  error?: string;
+}
+
+async function fetchCatalog(): Promise<{ all: CatalogModel[]; error?: string }> {
   try {
-    const response = await fetch(`${getOpenCodeEndpoint()}/models`, {
-      headers: {
-        'x-opencode-session': getOpenCodeSessionId(),
-      },
-    });
+    const response = await fetch(OPENCODE_CATALOG_URL, { headers: { Accept: 'application/json' } });
 
     if (!response.ok) {
-      console.warn('Failed to fetch OpenCode models:', response.status);
-      return [];
+      return {
+        all: [],
+        error: `Could not load the OpenCode model list (HTTP ${response.status}).`,
+      };
     }
 
     const data = await response.json();
-    return ((data.data || []) as RawOpenCodeModel[])
-      .filter(isVisionModel)
-      .map(toOpenCodeModel);
-  } catch (error) {
-    console.warn('Failed to fetch OpenCode models:', error);
-    return [];
+    const all = ((data.data || []) as RawOpenCodeModel[]).map(toCatalogModel);
+    if (all.length === 0) {
+      return { all: [], error: 'The OpenCode model list came back empty.' };
+    }
+    return { all };
+  } catch (cause) {
+    return {
+      all: [],
+      error: `Could not reach the OpenCode model list (${cause instanceof Error ? cause.message : 'network error'}).`,
+    };
   }
 }
 
-export async function getAvailableOpenCodeModels(forceRefresh = false): Promise<OpenCodeModel[]> {
-  if (!forceRefresh) {
-    try {
-      const cached = read(CACHED_MODELS_KEY);
-      const cacheTime = read(MODELS_CACHE_TIME_KEY);
+function visionModelsFrom(all: CatalogModel[]): OpenCodeModel[] {
+  return all
+    .filter((model) => model.vision)
+    .map(({ id, name, context }) => ({ id, name, context }));
+}
 
-      if (cached && cacheTime) {
-        const age = Date.now() - parseInt(cacheTime, 10);
-        if (age < CACHE_DURATION_MS) {
-          return JSON.parse(cached) as OpenCodeModel[];
-        }
-      }
-    } catch {
-      // Ignore cache errors
+function readCachedCatalog(): CatalogModel[] | null {
+  try {
+    const cached = read(CACHED_CATALOG_KEY);
+    const cacheTime = read(MODELS_CACHE_TIME_KEY);
+    if (!cached || !cacheTime) return null;
+    if (Date.now() - parseInt(cacheTime, 10) >= CACHE_DURATION_MS) return null;
+    const parsed = JSON.parse(cached);
+    return Array.isArray(parsed) ? (parsed as CatalogModel[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Full catalog (vision and non-vision), cached for a day. */
+export async function getOpenCodeCatalog(forceRefresh = false): Promise<OpenCodeCatalog> {
+  if (!forceRefresh) {
+    const cached = readCachedCatalog();
+    if (cached) {
+      return { all: cached, models: visionModelsFrom(cached) };
     }
   }
 
-  const models = await fetchModelsFromOpenCode();
+  const { all, error } = await fetchCatalog();
 
-  // Only cache a list that genuinely came back, so one failed fetch can't pin
-  // the app to a stale list for 24 hours.
-  if (models.length > 0) {
-    write(CACHED_MODELS_KEY, JSON.stringify(models));
+  // Only cache a catalog that genuinely came back, so one failed fetch cannot
+  // pin the app to an empty list for 24 hours.
+  if (all.length > 0) {
+    write(CACHED_CATALOG_KEY, JSON.stringify(all));
     write(MODELS_CACHE_TIME_KEY, Date.now().toString());
   }
 
-  return models;
+  return { all, models: visionModelsFrom(all), error };
+}
+
+export async function getAvailableOpenCodeModels(forceRefresh = false): Promise<OpenCodeModel[]> {
+  const catalog = await getOpenCodeCatalog(forceRefresh);
+  return catalog.models;
 }
 
 export interface OpenCodeModelValidation {
@@ -201,18 +248,23 @@ export async function validateOpenCodeModel(modelId: string): Promise<OpenCodeMo
     return { valid: false, reason: 'Enter a model ID' };
   }
 
-  const models = await getAvailableOpenCodeModels();
-  if (models.length === 0) {
-    return { valid: false, reason: 'Could not load models from the OpenCode endpoint' };
+  const catalog = await getOpenCodeCatalog();
+  if (catalog.error) {
+    return { valid: false, reason: catalog.error };
   }
 
-  const match = models.find((model) => model.id === id);
+  const match = catalog.all.find((model) => model.id === id);
   if (!match) {
-    const exact = models.some((model) => model.id.toLowerCase() === id.toLowerCase());
+    const caseOnly = catalog.all.find((model) => model.id.toLowerCase() === id.toLowerCase());
     return {
       valid: false,
-      reason: exact ? 'Model id must match exactly' : 'Model is not available with image input',
+      reason: caseOnly ? `Use the exact id: ${caseOnly.id}` : 'Not in the OpenCode model list',
     };
+  }
+
+  if (!match.vision) {
+    // Real finding, not a filter artefact: this model exists but takes no image.
+    return { valid: false, name: match.name, reason: 'Model exists but does not accept images' };
   }
 
   return { valid: true, name: match.name, reason: 'Valid vision model' };
@@ -275,6 +327,12 @@ export async function extractGroceryItemsWithOpenCode(
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
 
+      if (response.status === 404) {
+        throw apiError(
+          `No OCR relay at ${endpoint}. A browser cannot call opencode.ai directly, so a deployed site needs the relay (netlify/functions/opencode-ocr.mts, or the Cloudflare Worker in relay/) - or switch to OpenRouter in Settings.`,
+          404
+        );
+      }
       if (response.status === 401) {
         throw apiError('Invalid API key. Please check your OpenCode API key.', 401);
       }

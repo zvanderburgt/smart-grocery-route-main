@@ -1,6 +1,6 @@
 # Netlify deploy config for the Vite PWA.
 #
-# Both keys here are load-bearing. Without them the site published the raw
+# The build keys are load-bearing. Without them the site published the raw
 # repository: prod served index.html pointing at /src/main.tsx (200,
 # application/octet-stream) while /assets/* and /manifest.json 404'd, so the app
 # never booted. `publish = "dist"` is the actual fix; the command makes the
@@ -15,3 +15,13 @@
 # this is the most explicit of the three, and package.json records the same floor.
 [build.environment]
   NODE_VERSION = "22"
+
+# OpenCode OCR relay. The app calls /api/opencode/* by default; opencode.ai's
+# chat endpoint has no CORS headers, so that path has to be served same-origin.
+# The rewrite appends the matched rest as ?path= because the function cannot see
+# the original path after a 200 rewrite.
+[[redirects]]
+  from = "/api/opencode/*"
+  to = "/.netlify/functions/opencode-ocr?path=:splat"
+  status = 200
+  force = true
