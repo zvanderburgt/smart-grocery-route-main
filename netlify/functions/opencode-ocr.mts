@@ -3,9 +3,14 @@
  *
  * Why this exists: opencode.ai's chat-completions endpoint sends no CORS
  * headers, so a deployed static PWA cannot call it from the browser. This
- * function is the same-origin hop the app already expects at `/api/opencode/*`
- * (see the redirect in netlify.toml), and it can hold the API key as a Netlify
- * environment variable so the key never reaches the client.
+ * function is the same-origin hop the app already expects at `/api/opencode/*`,
+ * and it can hold the API key as a Netlify environment variable so the key never
+ * reaches the client.
+ *
+ * Routing note: this uses the Functions v2 `config.path` router rather than a
+ * netlify.toml redirect. A 200 rewrite cannot carry the rest of the path (the
+ * `?path=:splat` form silently does not substitute), so every request arrived
+ * looking like `/models` and POSTs 404'd.
  *
  * Set OPENCODE_API_KEY in Netlify (Site configuration -> Environment variables)
  * and OpenCode OCR works on the deployed site with no key in the app's Settings.
@@ -17,6 +22,9 @@
  */
 
 const UPSTREAM = 'https://opencode.ai/zen/go/v1';
+
+/** Served at the path the app already defaults to. */
+export const config = { path: '/api/opencode/*' };
 
 /** Keeps the upstream from being reached with an unexpected verb. */
 const ALLOWED_METHODS = new Set(['GET', 'POST']);
@@ -30,14 +38,11 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   const incoming = new URL(request.url);
-  // netlify.toml rewrites /api/opencode/<rest> here as ?path=<rest>, which
-  // survives the rewrite where the original path does not.
-  const rest = (incoming.searchParams.get('path') || 'models').replace(/^\/+/, '');
+  // config.path keeps the full path, so the rest is whatever follows the prefix.
+  const rest = incoming.pathname.replace(/^\/api\/opencode\/?/, '') || 'models';
 
   const target = new URL(`${UPSTREAM}/${rest}`);
-  incoming.searchParams.forEach((value, key) => {
-    if (key !== 'path') target.searchParams.set(key, value);
-  });
+  incoming.searchParams.forEach((value, key) => target.searchParams.set(key, value));
 
   const headers = new Headers();
   const contentType = request.headers.get('content-type');

@@ -16,12 +16,7 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# OpenCode OCR relay. The app calls /api/opencode/* by default; opencode.ai's
-# chat endpoint has no CORS headers, so that path has to be served same-origin.
-# The rewrite appends the matched rest as ?path= because the function cannot see
-# the original path after a 200 rewrite.
-[[redirects]]
-  from = "/api/opencode/*"
-  to = "/.netlify/functions/opencode-ocr?path=:splat"
-  status = 200
-  force = true
+# The OpenCode OCR relay lives in netlify/functions/opencode-ocr.mts and routes
+# itself with `export const config = { path: "/api/opencode/*" }`. Do not add a
+# redirect here: a 200 rewrite cannot forward the rest of the path, so every
+# request would arrive as /models and POSTs would 404.
