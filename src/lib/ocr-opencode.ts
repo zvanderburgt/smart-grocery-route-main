@@ -240,6 +240,33 @@ export interface OpenCodeModelValidation {
   valid: boolean;
   reason?: string;
   name?: string;
+  /** True when the model exists but its catalog entry omits image input. */
+  overrideAllowed?: boolean;
+}
+
+const VISION_OVERRIDES_KEY = 'opencode-vision-overrides';
+
+/** Models the user has explicitly enabled despite a text-only catalog entry. */
+export function getOpenCodeVisionOverrides(): string[] {
+  try {
+    const raw = read(VISION_OVERRIDES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function allowOpenCodeModel(modelId: string): void {
+  const id = modelId.trim();
+  if (!id) return;
+  const current = getOpenCodeVisionOverrides();
+  if (!current.includes(id)) write(VISION_OVERRIDES_KEY, JSON.stringify([...current, id]));
+}
+
+export function disallowOpenCodeModel(modelId: string): void {
+  const next = getOpenCodeVisionOverrides().filter((id) => id !== modelId.trim());
+  write(VISION_OVERRIDES_KEY, JSON.stringify(next));
 }
 
 export async function validateOpenCodeModel(modelId: string): Promise<OpenCodeModelValidation> {
@@ -263,8 +290,22 @@ export async function validateOpenCodeModel(modelId: string): Promise<OpenCodeMo
   }
 
   if (!match.vision) {
-    // Real finding, not a filter artefact: this model exists but takes no image.
-    return { valid: false, name: match.name, reason: 'Model exists but does not accept images' };
+    // The catalog says text-only. That is not always the truth (longcat-2.5-free
+    // reads images while advertising text input only), so offer the override
+    // instead of a dead end - but never silently.
+    if (getOpenCodeVisionOverrides().includes(id)) {
+      return {
+        valid: true,
+        name: match.name,
+        reason: 'Enabled manually - the catalog does not list image input',
+      };
+    }
+    return {
+      valid: false,
+      name: match.name,
+      reason: 'Does not advertise image input',
+      overrideAllowed: true,
+    };
   }
 
   return { valid: true, name: match.name, reason: 'Valid vision model' };

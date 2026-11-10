@@ -14,7 +14,7 @@ import { GearSix, Download, Trash, ArrowClockwise, Heart, GraduationCap, ChartBa
 import { toast } from 'sonner'
 import { getOpenRouterApiKey, setOpenRouterApiKey, clearOpenRouterApiKey, hasOpenRouterApiKey, getSelectedOpenRouterModel, setSelectedOpenRouterModel, validateOpenRouterModel, getAvailableOpenRouterModels, getAutoSelectModel, setAutoSelectModel, type ModelValidationResult, type OpenRouterModel } from '@/lib/ocr-openrouter'
 import { OCR_PROVIDERS, getOcrProvider, getOcrProviderLabel, isOcrProviderConfigured, setOcrProvider, type OcrProvider } from '@/lib/ocr-provider'
-import { DEFAULT_OPENCODE_ENDPOINT, clearOpenCodeApiKey, getOpenCodeCatalog, getOpenCodeApiKey, getOpenCodeEndpoint, getSelectedOpenCodeModel, setOpenCodeApiKey, setOpenCodeEndpoint, setSelectedOpenCodeModel, validateOpenCodeModel, type OpenCodeModel, type OpenCodeModelValidation } from '@/lib/ocr-opencode'
+import { DEFAULT_OPENCODE_ENDPOINT, allowOpenCodeModel, clearOpenCodeApiKey, getOpenCodeCatalog, getOpenCodeApiKey, getOpenCodeEndpoint, getSelectedOpenCodeModel, setOpenCodeApiKey, setOpenCodeEndpoint, setSelectedOpenCodeModel, validateOpenCodeModel, type OpenCodeModel, type OpenCodeModelValidation } from '@/lib/ocr-opencode'
 
 // Phones need 44px hit targets (iOS HIG / Material); `pointer-coarse` lifts the
 // controls only on touch devices so desktop rows stay compact. Note the project
@@ -119,6 +119,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
   const [openCodeModel, setOpenCodeModel] = useState(getSelectedOpenCodeModel())
   const [openCodeModels, setOpenCodeModels] = useState<OpenCodeModel[]>([])
   const [openCodeCatalogError, setOpenCodeCatalogError] = useState<string | null>(null)
+  const [validationTick, setValidationTick] = useState(0)
   const [isLoadingOpenCodeModels, setIsLoadingOpenCodeModels] = useState(false)
   const [isCheckingOpenCodeModel, setIsCheckingOpenCodeModel] = useState(false)
   const [openCodeCheck, setOpenCodeCheck] = useState<OpenCodeModelValidation | null>(null)
@@ -210,7 +211,7 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
       window.clearTimeout(timer)
       setIsCheckingOpenCodeModel(false)
     }
-  }, [openCodeModel, openCodeEndpoint, ocrProvider, keySavedTick])
+  }, [openCodeModel, openCodeEndpoint, ocrProvider, keySavedTick, validationTick])
 
   useEffect(() => {
     const loadStatus = async () => {
@@ -840,6 +841,20 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                     ) : openCodeCheck ? (
                       <span className="text-destructive flex items-center gap-1">
                         <WarningCircle size={12} /> {openCodeCheck.reason}
+                        {openCodeCheck.overrideAllowed && (
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="sm"
+                            className="h-auto px-1 text-xs underline pointer-coarse:min-h-11"
+                            onClick={() => {
+                              allowOpenCodeModel(openCodeModel)
+                              setValidationTick((n) => n + 1)
+                            }}
+                          >
+                            Use anyway
+                          </Button>
+                        )}
                       </span>
                     ) : null}
                   </p>

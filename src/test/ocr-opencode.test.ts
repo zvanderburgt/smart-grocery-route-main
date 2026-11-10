@@ -3,6 +3,7 @@ import {
   DEFAULT_OPENCODE_ENDPOINT,
   DEFAULT_OPENCODE_MODEL,
   OPENCODE_CATALOG_URL,
+  allowOpenCodeModel,
   getOpenCodeCatalog,
   validateOpenCodeModel,
   extractGroceryItemsWithOpenCode,
@@ -247,7 +248,7 @@ describe('model validation', () => {
     // deepseek-v4-pro is in the fixture catalog with text-only input
     await expect(validateOpenCodeModel('deepseek-v4-pro')).resolves.toMatchObject({
       valid: false,
-      reason: expect.stringMatching(/does not accept images/),
+      reason: expect.stringMatching(/does not advertise image input/i),
     });
 
     await expect(validateOpenCodeModel('not-a-real-model')).resolves.toMatchObject({
@@ -280,5 +281,36 @@ describe('missing relay', () => {
     await expect(extractGroceryItemsWithOpenCode('data:image/jpeg;base64,AAAA')).rejects.toThrow(
       /No OCR relay/
     );
+  });
+});
+
+describe('manual vision override', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => catalog })
+    );
+  });
+
+  it('flags a text-only model as overridable rather than a dead end', async () => {
+    // longcat-2.5-free style case: catalog omits image input but the model works
+    const result = await validateOpenCodeModel('deepseek-v4-pro');
+
+    expect(result).toMatchObject({ valid: false, overrideAllowed: true });
+  });
+
+  it('accepts the model once it has been explicitly allowed', async () => {
+    allowOpenCodeModel('deepseek-v4-pro');
+
+    const result = await validateOpenCodeModel('deepseek-v4-pro');
+
+    expect(result).toMatchObject({ valid: true });
+    expect(result.reason).toMatch(/Enabled manually/);
+  });
+
+  it('never offers the override for an id that is not in the catalog', async () => {
+    const result = await validateOpenCodeModel('nope-not-a-model');
+
+    expect(result.overrideAllowed).toBeUndefined();
   });
 });
