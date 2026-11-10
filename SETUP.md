@@ -85,16 +85,25 @@ VITE_GOOGLE_CLIENT_ID=600675453918-ohm8ocf92huis1lg91t9r1puen9olh8f.apps.googleu
 1. Go to [Google Sheets](https://sheets.google.com)
 2. Create a **new blank spreadsheet**
 3. Name it "Shared Grocery List" (or any name you prefer)
-4. **Set up column headers** in Row 1 (columns A–I):
+4. **Optionally set up column headers** in Row 1 (columns A–K). The app writes
+   them itself the first time it connects; if you type them by hand, use exactly:
 
-   | A | B | C | D | E | F | G | H | I |
-   |---|---|---|---|---|---|---|---|---|
-   | id | name | checked | checkedAt | addedAt | category | quantity | updatedAt | updatedBy |
+   | A | B | C | D | E | F | G | H | I | J | K |
+   |---|---|---|---|---|---|---|---|---|---|---|
+   | id | name | checked | checkedAt | addedAt | category | quantity | updatedAt | updatedBy | isTombstone | revivedAt |
 
-   You can copy-paste this tab-separated row:
+   Copy-paste version:
    ```
-   id	name	checked	checkedAt	addedAt	category	quantity	updatedAt	updatedBy
+   id	name	checked	checkedAt	addedAt	category	quantity	updatedAt	updatedBy	isTombstone	revivedAt
    ```
+
+   The app also creates a second tab, **`Deletions`** (`id`, `deletedAt`,
+   `deviceId`). That tab is the deletion ledger — it is what keeps a delete (or
+   a whole cleared list) from being resurrected by the other phone. Leave it in
+   place; rows are append-only and harmless if you read them.
+   
+   Don't reorder or rename columns: a header mismatch is reported in Settings
+   rather than silently rewritten, but writes assume this column order.
 
 5. **Share the sheet** with both Google accounts:
    - Click **Share** (top-right)
@@ -107,6 +116,25 @@ VITE_GOOGLE_CLIENT_ID=600675453918-ohm8ocf92huis1lg91t9r1puen9olh8f.apps.googleu
    https://docs.google.com/spreadsheets/d/{SHEET_ID_HERE}/edit
    ```
    The Sheet ID is the 44-character string between `/d/` and `/edit`
+
+#### How syncing behaves
+
+- Every sync reads the item tab and the `Deletions` tab, merges per field, then
+  writes **only the rows that changed** (one batched request). Nothing is
+  cleared and rewritten, so there is no window where the shared sheet is empty
+  and two phones can sync at the same time without erasing each other.
+- `checked`/`checkedAt` and `name`/`quantity`/`category` are merged
+  independently: checking an item on one phone no longer discards a rename made
+  on the other.
+- Ties are broken deterministically, so both devices end up with the same value
+  rather than each keeping its own.
+- Deletes — single or "Clear completed"/"Clear list" — are recorded in
+  `Deletions` and propagate everywhere. Undo works even after the deletion has
+  reached the sheet.
+- Cells are written with `RAW` value input, so an item named `1/2` stays text,
+  and nothing you type is interpreted as a formula.
+- While offline, changes stay local (they are remembered across reloads) and
+  push automatically when the network or the tab returns.
 
 ### 4. Connect in the App
 

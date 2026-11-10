@@ -1,82 +1,124 @@
 /**
- * React Hook for Google Sheets Sync
- * Manages authentication, sync state, and automatic background sync
+ * React wrapper around the Sheets sync engine.
+ *
+ * The hook owns React state, persistence and scheduling; merging and write
+ * planning live in `sync-engine.ts` / `sync-model.ts` so they can be tested
+ * without rendering React.
+ *
+ * What is persisted (localStorage) is the user's *intent*, not in-flight state:
+ *   - `google-sheets-pending-deletions` — ids deleted here that the sheet has
+ *     not confirmed yet, with delete timestamps.
+ *   - `google-sheets-dirty` — "local changes were never pushed", so a reload
+ *     still syncs them.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocalStorage } from './use-local-storage';
-import type {
-  GoogleSheetsConfig,
-  SyncState,
-  GroceryItem,
-} from '@/lib/types';
+import type { GoogleSheetsConfig, SyncState, GroceryItem } from '@/lib/types';
+import { mergeItems, type DeletionRecord } from '@/lib/sync-model';
+import { createSheetsApi } from '@/lib/sheets-api';
+import { createSyncEngine, type SyncEngine } from '@/lib/sync-engine';
+import { getDeviceId } from '@/lib/device-id';
+import { markItemRevived } from '@/lib/item-mutations';
 import {
-  initGoogleSheetsAuth,
+  AuthRequiredError,
+  getAccessToken,
+  handleOAuthRedirect,
+  initGoogleAuth,
+  isSignedIn as isGoogleSignedIn,
   redirectToGoogleOAuth,
   signOut as signOutGoogle,
-  isSignedIn as checkSignedIn,
-  handleOAuthRedirect,
-  ensureGroceryListSheet,
-  getAllGroceryItems,
-  syncItemsToSheets,
-} from '@/lib/google-sheets';
-import {
-  mergeLocalAndRemote,
-  createInitialSyncState,
-  createTombstone,
-  purgeStaleTombstones,
-} from '@/lib/sync-engine';
+} from '@/lib/google-auth';
 import { toast } from 'sonner';
 
 const CONFIG_KEY = 'google-sheets-config';
+const PENDING_DELETIONS_KEY = 'google-sheets-pending-deletions';
+/** Legacy "ids only" format written by older builds; migrated on read. */
+const LEGACY_PENDING_DELETES_KEY = 'google-sheets-pending-deletes';
+const DIRTY_KEY = 'google-sheets-dirty';
+
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-/**
- * Whether the local-changes effect should even consider triggering a sync.
- * Gated on "has at least one sync completed this session" (a non-empty
- * lastSyncedItemsKey) rather than "the list currently has items" - the old
- * `localItems.length > 0` check meant a genuinely emptied list (e.g. after a
- * bulk clear) could never be pushed by this listener, since the gate blocked
- * it outright. Before any sync completes, lastSyncedItemsKey is '' and this
- * still correctly returns false, preserving the original startup-wipe
- * protection (do not push a not-yet-loaded empty list before anything has
- * been read).
- */
-export function shouldConsiderAutoSync(lastSyncedItemsKey: string): boolean {
-  return lastSyncedItemsKey !== '';
+const MIN_SYNC_INTERVAL_MS = 5000;
+const LOCAL_CHANGE_DEBOUNCE_MS = 1000;
+const MAX_QUOTA_RESCHEDULE_MS = 60000;
+
+export function readPendingDeletions(): DeletionRecord[] {
+  try {
+    const raw = window.localStorage.getItem(PENDING_DELETIONS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((entry): entry is DeletionRecord => !!entry && typeof entry === 'object' && typeof entry.id === 'string')
+          .map((entry) => ({
+            id: entry.id,
+            deletedAt: Number.isFinite(entry.deletedAt) ? entry.deletedAt : Date.now(),
+            deviceId: entry.deviceId,
+          }));
+      }
+    }
+
+    // Migration from the old ids-only format. Without a timestamp we cannot
+    // distinguish a delete from a later revive, so treat them as deleted now.
+    const legacy = window.localStorage.getItem(LEGACY_PENDING_DELETES_KEY);
+    if (legacy) {
+      const parsed = JSON.parse(legacy);
+      if (Array.isArray(parsed)) {
+        const migrated = parsed
+          .filter((id): id is string => typeof id === 'string')
+          .map((id) => ({ id, deletedAt: Date.now() }));
+        writePendingDeletions(migrated);
+        window.localStorage.removeItem(LEGACY_PENDING_DELETES_KEY);
+        return migrated;
+      }
+    }
+  } catch {
+    // Malformed storage means "nothing pending", never a throw.
+  }
+  return [];
 }
 
-const PENDING_DELETES_KEY = 'google-sheets-pending-deletes';
-
-/**
- * Read the set of item ids from an explicit bulk clear (deleteItemsPermanently)
- * that still need to be excluded from the sheet on the next successful sync.
- * Backed by plain localStorage (not the useLocalStorage hook's React state) so
- * it can be read/written synchronously from inside syncNow's async closure -
- * the same reasoning as itemsRef/lastSyncedItemsRef elsewhere in this file:
- * a value read across an await needs to reflect the latest write, not whatever
- * was current when the closure was created. Persisting it (instead of a bare
- * useRef Set) is what lets a reload during the sync window not lose track of
- * ids that still need to be force-deleted, so a resurrected item does not
- * silently come back from the sheet.
- */
-export function readPendingDeleteIds(): Set<string> {
+export function writePendingDeletions(records: DeletionRecord[]): void {
   try {
-    const raw = window.localStorage.getItem(PENDING_DELETES_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return new Set();
-    return new Set(parsed.filter((id): id is string => typeof id === 'string'));
+    window.localStorage.setItem(PENDING_DELETIONS_KEY, JSON.stringify(records));
   } catch {
-    return new Set();
+    // Storage may be full; the sheet write still happens this session.
   }
 }
 
-export function writePendingDeleteIds(ids: Set<string>): void {
+export function addPendingDeletions(
+  ids: string[],
+  deviceId: string,
+  now: number = Date.now()
+): DeletionRecord[] {
+  const byId = new Map(readPendingDeletions().map((record) => [record.id, record]));
+  for (const id of ids) byId.set(id, { id, deletedAt: now, deviceId });
+  const merged = [...byId.values()];
+  writePendingDeletions(merged);
+  return merged;
+}
+
+export function removePendingDeletions(ids: string[]): void {
+  if (ids.length === 0) return;
+  const remove = new Set(ids);
+  writePendingDeletions(readPendingDeletions().filter((record) => !remove.has(record.id)));
+}
+
+export function readDirtyFlag(): boolean {
   try {
-    window.localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(Array.from(ids)));
+    return window.localStorage.getItem(DIRTY_KEY) === 'true';
   } catch {
-    // localStorage might be full or unavailable - fail silently, same as useLocalStorage does
+    return false;
+  }
+}
+
+export function writeDirtyFlag(dirty: boolean): void {
+  try {
+    if (dirty) window.localStorage.setItem(DIRTY_KEY, 'true');
+    else window.localStorage.removeItem(DIRTY_KEY);
+  } catch {
+    // ignore
   }
 }
 
@@ -84,8 +126,8 @@ interface UseGoogleSheetsSyncOptions {
   localItems: GroceryItem[];
   onItemsChange: (items: GroceryItem[] | ((prev: GroceryItem[] | undefined) => GroceryItem[])) => void;
   userEmail?: string;
-  autoSync?: boolean; // default: true
-  syncInterval?: number; // default: 30000 (30 seconds)
+  autoSync?: boolean;
+  syncInterval?: number;
 }
 
 interface UseGoogleSheetsSyncReturn {
@@ -105,6 +147,22 @@ interface UseGoogleSheetsSyncReturn {
   error: string | null;
 }
 
+function signatureOf(item: GroceryItem): string {
+  return [
+    item.name,
+    item.quantity ?? '',
+    item.category ?? '',
+    item.checked ? '1' : '0',
+    item.checkedAt ?? '',
+    item.updatedAt ?? '',
+    item.revivedAt ?? '',
+  ].join('|');
+}
+
+function signatureMap(items: GroceryItem[]): Map<string, string> {
+  return new Map(items.filter((item) => !item.isTombstone).map((item) => [item.id, signatureOf(item)]));
+}
+
 export function useGoogleSheetsSync({
   localItems,
   onItemsChange,
@@ -113,585 +171,404 @@ export function useGoogleSheetsSync({
   syncInterval = 30000,
 }: UseGoogleSheetsSyncOptions): UseGoogleSheetsSyncReturn {
   const [config, setConfigState] = useLocalStorage<GoogleSheetsConfig | null>(CONFIG_KEY, null);
-  const [syncState, setSyncState] = useState<SyncState>(createInitialSyncState());
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState>({ status: 'disconnected', pendingWrites: 0 });
+  const [signedIn, setSignedInState] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const syncIntervalRef = useRef<number | null>(null);
-  const isSyncingRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const lastSyncedItemsRef = useRef<string>(''); // Track last synced items to avoid redundant syncs
-  const userIdRef = useRef<string>(providedUserEmail || 'unknown@user.com');
   const isMountedRef = useRef(true);
-  const pendingSyncTriggerRef = useRef<{ timeoutId: number; reason: string } | null>(null);
-  const rateLimitedRetryRef = useRef<number | null>(null); // Timer for a sync deferred by the rate limiter
-  const syncPromiseRef = useRef<Promise<void> | null>(null);
-  const lastSyncTimeRef = useRef<number>(0); // Track last successful sync time
-  const minSyncIntervalRef = useRef(5000); // Minimum 5 seconds between syncs
-  const retryCountRef = useRef(0); // Track retry attempts for exponential backoff
-  const hasSyncErrorToastedRef = useRef(false); // Only toast once per new failure, not per retry
-  const itemsRef = useRef<GroceryItem[]>(localItems); // Always-current items, read inside syncNow instead of the stale closure
-  const forceDeleteFollowUpPendingRef = useRef(false); // Guards against stacking more than one follow-up sync when syncNow is called again while a sync is already in flight
+  const itemsRef = useRef<GroceryItem[]>(localItems);
+  const configRef = useRef<GoogleSheetsConfig | null>(config ?? null);
+  const userEmailRef = useRef<string>(providedUserEmail || getDeviceId());
+  const deviceIdRef = useRef(getDeviceId());
+  const engineRef = useRef<SyncEngine | null>(null);
 
-  // Keep itemsRef current every render so an in-flight sync reads the latest
-  // local state instead of whatever localItems was when syncNow was created.
+  const syncPromiseRef = useRef<Promise<void> | null>(null);
+  const lastSyncedRef = useRef<Map<string, string>>(new Map());
+  const lastSyncAtRef = useRef(0);
+  const debounceRef = useRef<number | null>(null);
+  const retryRef = useRef<number | null>(null);
+  const quotaReschedulesRef = useRef(0);
+  const errorToastedRef = useRef(false);
+
   useEffect(() => {
     itemsRef.current = localItems;
   }, [localItems]);
 
-  // Initialize Google Auth on mount
   useEffect(() => {
-    isMountedRef.current = true;
-    if (!GOOGLE_CLIENT_ID) {
-      console.warn('[GoogleSheets] VITE_GOOGLE_CLIENT_ID not set');
+    configRef.current = config ?? null;
+  }, [config]);
+
+  useEffect(() => {
+    userEmailRef.current = providedUserEmail || deviceIdRef.current;
+    if (providedUserEmail) setUserEmail(providedUserEmail);
+  }, [providedUserEmail]);
+
+  const getEngine = useCallback((): SyncEngine => {
+    if (!engineRef.current) {
+      engineRef.current = createSyncEngine({
+        api: createSheetsApi({ getToken: (options) => getAccessToken(options) }),
+        getConfig: () => ({
+          sheetId: configRef.current?.sheetId ?? '',
+          sheetName: configRef.current?.sheetName || 'GroceryList',
+        }),
+        deviceId: deviceIdRef.current,
+        getUserEmail: () => userEmailRef.current,
+      });
+    }
+    return engineRef.current;
+  }, []);
+
+  /**
+   * How many local items differ from what the sheet last confirmed. This is both
+   * the "should we push?" test and the number the UI reports - it used to report
+   * the list length, which said "12 pending" for a perfectly synced list.
+   */
+  const countPendingWrites = useCallback((): number => {
+    const current = signatureMap(itemsRef.current);
+    let pending = 0;
+    for (const [id, signature] of current) {
+      if (lastSyncedRef.current.get(id) !== signature) pending += 1;
+    }
+    for (const id of lastSyncedRef.current.keys()) {
+      if (!current.has(id)) pending += 1;
+    }
+    return pending;
+  }, []);
+
+  const syncNow = useCallback(async (): Promise<void> => {
+    const currentConfig = configRef.current;
+    if (!currentConfig?.sheetId || !currentConfig.syncEnabled) return;
+
+    // Offline: keep the intent, drop the request. A visibility/online listener
+    // picks it up again; hammering a dead network just produced error toasts.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      writeDirtyFlag(true);
       return;
     }
 
-    userIdRef.current = providedUserEmail || 'unknown@user.com';
+    if (syncPromiseRef.current) return syncPromiseRef.current;
 
-    initGoogleSheetsAuth(GOOGLE_CLIENT_ID)
+    const sinceLast = Date.now() - lastSyncAtRef.current;
+    if (lastSyncAtRef.current > 0 && sinceLast < MIN_SYNC_INTERVAL_MS) {
+      // Coalesce into one run at the end of the floor instead of dropping the
+      // request (a dropped request waited for the next periodic tick).
+      if (retryRef.current) window.clearTimeout(retryRef.current);
+      retryRef.current = window.setTimeout(() => {
+        retryRef.current = null;
+        if (isMountedRef.current) void syncNow();
+      }, MIN_SYNC_INTERVAL_MS - sinceLast);
+      return;
+    }
+
+    const deletionsSnapshot = readPendingDeletions();
+
+    const run = (async () => {
+      setSyncState((prev) => ({ ...prev, status: 'syncing', pendingWrites: countPendingWrites() }));
+      setError(null);
+
+      try {
+        const result = await getEngine().sync(
+          itemsRef.current.filter((item) => !item.isTombstone),
+          deletionsSnapshot
+        );
+        if (!isMountedRef.current) return;
+
+        // Fold the result into the list as it is *now*, so an edit made while
+        // the request was in flight survives the round trip.
+        onItemsChange((current) => mergeItems(current ?? [], result.items).merged);
+
+        removePendingDeletions(deletionsSnapshot.map((record) => record.id));
+        lastSyncedRef.current = signatureMap(result.items);
+        lastSyncAtRef.current = Date.now();
+        writeDirtyFlag(false);
+        quotaReschedulesRef.current = 0;
+        errorToastedRef.current = false;
+
+        // A header that does not match this build is reported, not rewritten.
+        // ensureSheets() is memoized per engine, so this is a cached read.
+        const structure = await getEngine().ensureSheets();
+        if (structure.headerWarning) setError(structure.headerWarning);
+
+        setSyncState({
+          status: 'synced',
+          lastSyncAt: lastSyncAtRef.current,
+          pendingWrites: 0,
+          lastError: structure.headerWarning,
+        });
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        const message = err instanceof Error ? err.message : 'Sync failed';
+
+        setError(message);
+        setSyncState((prev) => ({
+          ...prev,
+          status: 'error',
+          lastError: message,
+          pendingWrites: countPendingWrites(),
+        }));
+
+        if (err instanceof AuthRequiredError) {
+          setSignedInState(false);
+          return;
+        }
+
+        if (!errorToastedRef.current) {
+          errorToastedRef.current = true;
+          toast.error(`Sync failed: ${message}`);
+        }
+
+        // One reschedule for quota pressure. The API layer already spent its own
+        // backoff, so this is about not hammering a saturated quota, not a retry
+        // loop layered on top of another retry loop.
+        const isQuota = /quota|rate limit|429/i.test(message);
+        if (isQuota && quotaReschedulesRef.current < 3) {
+          quotaReschedulesRef.current += 1;
+          const delay = Math.min(2000 * 2 ** quotaReschedulesRef.current, MAX_QUOTA_RESCHEDULE_MS);
+          if (retryRef.current) window.clearTimeout(retryRef.current);
+          retryRef.current = window.setTimeout(() => {
+            retryRef.current = null;
+            if (isMountedRef.current) void syncNow();
+          }, delay);
+        }
+      } finally {
+        syncPromiseRef.current = null;
+      }
+    })();
+
+    syncPromiseRef.current = run;
+    return run;
+  }, [countPendingWrites, getEngine, onItemsChange]);
+
+  // Bootstrap auth once and consume an OAuth redirect return.
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (!GOOGLE_CLIENT_ID) return;
+
+    initGoogleAuth(GOOGLE_CLIENT_ID)
       .then(() => {
-        // Check if we're returning from OAuth redirect
-        return handleOAuthRedirect();
-      })
-      .then((restoredToken) => {
+        const redirect = handleOAuthRedirect();
         if (!isMountedRef.current) return;
 
-        if (restoredToken) {
-          console.log('[GoogleSheets] Token restored from redirect');
-          setIsSignedIn(true);
-          if (config?.connectedAccountEmail) {
-            setUserEmail(config.connectedAccountEmail);
+        if (redirect) {
+          if (redirect.sheetId) {
+            setConfigState((prev) => ({
+              sheetId: redirect.sheetId as string,
+              sheetName: redirect.sheetName || prev?.sheetName || 'GroceryList',
+              syncEnabled: true,
+              connectedAccountEmail: prev?.connectedAccountEmail,
+              lastSyncAt: prev?.lastSyncAt,
+            }));
           }
-          // Ensure sheet exists (but don't sync to avoid infinite loop)
-          if (config?.sheetId) {
-            setSyncState(prev => ({ ...prev, status: 'connecting' }));
-            ensureGroceryListSheet({ sheetId: config.sheetId, sheetName: config.sheetName || 'GroceryList', syncEnabled: true })
-              .then(() => {
-                if (!isMountedRef.current) return;
-                console.log('[GoogleSheets] Sheet ensured after redirect');
-                // Disabled syncNow to prevent infinite loop
-                // return syncNow();
-              })
-              .catch(err => {
-                if (!isMountedRef.current) return;
-                console.error('[GoogleSheets] Post-redirect sync failed:', err);
-                setError(err.message);
-                setSyncState(prev => ({ ...prev, status: 'error', lastError: err.message }));
-              });
-          }
+          setSignedInState(true);
+          return;
         }
-        // Also check normal signed-in state
-        const signedIn = checkSignedIn();
-        setIsSignedIn(signedIn);
-        if (signedIn && config?.connectedAccountEmail) {
-          setUserEmail(config.connectedAccountEmail);
-        }
+
+        setSignedInState(isGoogleSignedIn());
       })
-      .catch(err => {
+      .catch((err) => {
         if (!isMountedRef.current) return;
-        console.error('[GoogleSheets] Auth init failed:', err);
-        setError('Failed to initialize Google Sign-In');
+        setError(err instanceof Error ? err.message : 'Failed to initialize Google Sign-In');
       });
 
     return () => {
       isMountedRef.current = false;
     };
-  }, [config?.connectedAccountEmail]);
+  }, [setConfigState]);
 
-  // Update sync state when config changes
+  // First sync after connecting, and after any reload that left work behind.
   useEffect(() => {
-    if (!isMountedRef.current) return;
+    if (!config?.sheetId || !config.syncEnabled || !signedIn) return;
+    if (syncState.status === 'synced' || syncState.status === 'syncing') return;
 
-    if (config?.sheetId && config.syncEnabled) {
-      // Check if we have valid token
-      if (checkSignedIn()) {
-        setIsSignedIn(true);
-        // Initial sync on connect
-        if (syncState.status === 'disconnected' || syncState.status === 'error') {
-          setSyncState(prev => ({ ...prev, status: 'connecting' }));
-          syncNow().catch(console.error);
-        }
+    // Baseline for "already pushed": everything on screen, unless a previous run
+    // left unsynced changes behind (in which case everything counts as pending).
+    if (!readDirtyFlag() && lastSyncedRef.current.size === 0) {
+      lastSyncedRef.current = signatureMap(itemsRef.current);
+    }
+
+    setSyncState((prev) => ({ ...prev, status: 'connecting' }));
+    void syncNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.sheetId, config?.syncEnabled, signedIn]);
+
+  // Local edits -> debounced push. Comparing signatures against the last
+  // confirmed state is what keeps a sync's own result from looking like a new
+  // local edit, which would loop forever.
+  useEffect(() => {
+    if (!config?.sheetId || !config.syncEnabled || !signedIn) return;
+
+    if (countPendingWrites() === 0) {
+      writeDirtyFlag(false);
+      return;
+    }
+
+    writeDirtyFlag(true);
+
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      debounceRef.current = null;
+      if (isMountedRef.current && !syncPromiseRef.current) void syncNow();
+    }, LOCAL_CHANGE_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+        debounceRef.current = null;
       }
-    } else {
-      setSyncState(createInitialSyncState());
-      setIsSignedIn(false);
-      setUserEmail(null);
-      stopAutoSync();
-    }
-  }, [config?.sheetId, config?.syncEnabled]);
+    };
+  }, [localItems, config?.sheetId, config?.syncEnabled, signedIn, countPendingWrites, syncNow]);
 
-  // Auto-sync when local items change (write to sheets) - debounced
+  // Periodic pull while the tab is visible; immediate pull when the tab comes
+  // back or the network returns.
   useEffect(() => {
-    if (!isMountedRef.current) return;
+    if (!autoSync || !config?.syncEnabled || !signedIn) return;
 
-    if (config?.sheetId && config.syncEnabled && isSignedIn) {
-      // Only trigger if at least one sync has already completed - this lets a
-      // genuinely emptied list (e.g. after a bulk clear) still get pushed,
-      // while a not-yet-loaded empty list before the first sync does not.
-      if (shouldConsiderAutoSync(lastSyncedItemsRef.current)) {
-        const currentItemsKey = JSON.stringify(localItems.map(i => ({
-          id: i.id,
-          name: i.name,
-          checked: i.checked,
-          quantity: i.quantity,
-          category: i.category,
-          checkedAt: i.checkedAt,
-          updatedAt: i.updatedAt,
-          updatedBy: i.updatedBy,
-          isTombstone: i.isTombstone,
-        })));
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (!isMountedRef.current || syncPromiseRef.current) return;
+      void syncNow();
+    }, syncInterval);
 
-        if (currentItemsKey !== lastSyncedItemsRef.current) {
-          // Clear any existing pending sync trigger
-          if (pendingSyncTriggerRef.current) {
-            clearTimeout(pendingSyncTriggerRef.current.timeoutId);
-          }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void syncNow();
+    };
+    const onOnline = () => {
+      if (isMountedRef.current) void syncNow();
+    };
 
-          const timeoutId = window.setTimeout(() => {
-            if (isMountedRef.current && !isSyncingRef.current && syncState.status !== 'syncing') {
-              syncNow().catch(console.error);
-            }
-            pendingSyncTriggerRef.current = null;
-          }, 1000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
 
-          pendingSyncTriggerRef.current = { timeoutId, reason: 'local-changes' };
-        }
-      }
-    }
-  }, [localItems, config?.sheetId, config?.syncEnabled, isSignedIn, syncState.status]);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [autoSync, config?.syncEnabled, signedIn, syncInterval, syncNow]);
 
-  // Auto-sync interval - periodic pull/push while the tab is visible.
-  // Skipped silently while the tab is hidden/backgrounded (no point burning quota
-  // on a list nobody's looking at); a visibilitychange listener below triggers one
-  // immediate sync when the tab becomes visible again, since that's when a user
-  // actually expects to see fresh data.
+  // Keep lastSyncAt on the persisted config for the settings UI.
   useEffect(() => {
-    if (!isMountedRef.current) return;
-
-    if (autoSync && config?.syncEnabled && isSignedIn) {
-      startAutoSync(syncInterval);
-
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible' && isMountedRef.current && !isSyncingRef.current && syncState.status !== 'syncing') {
-          syncNow().catch(console.error);
-        }
-      };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        stopAutoSync();
-      };
-    } else {
-      stopAutoSync();
-    }
-
-    return () => stopAutoSync();
-  }, [autoSync, config?.syncEnabled, isSignedIn, syncInterval]);
-
-  // Persist sync state
-  useEffect(() => {
-    if (!isMountedRef.current) return;
-    setConfigState(prev => {
-      if (!prev) return null;
-      return { ...prev, lastSyncAt: syncState.lastSyncAt };
-    });
+    if (!syncState.lastSyncAt) return;
+    setConfigState((prev) => (prev ? { ...prev, lastSyncAt: syncState.lastSyncAt } : null));
   }, [syncState.lastSyncAt, setConfigState]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      if (pendingSyncTriggerRef.current) {
-        clearTimeout(pendingSyncTriggerRef.current.timeoutId);
-      }
-      if (rateLimitedRetryRef.current) {
-        clearTimeout(rateLimitedRetryRef.current);
-      }
-      stopAutoSync();
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      if (retryRef.current) window.clearTimeout(retryRef.current);
     };
   }, []);
 
-  const setConfig = useCallback((partialConfig: Partial<GoogleSheetsConfig>) => {
-    setConfigState(prev => {
-      if (prev) {
-        return { ...prev, ...partialConfig };
-      }
-      // Create initial config if it doesn't exist
-      return {
-        sheetId: partialConfig.sheetId || '',
-        sheetName: partialConfig.sheetName || 'GroceryList',
-        syncEnabled: partialConfig.syncEnabled ?? true,
-        ...partialConfig,
-      };
-    });
-  }, [setConfigState]);
+  const setConfig = useCallback(
+    (partial: Partial<GoogleSheetsConfig>) => {
+      setConfigState((prev) =>
+        prev
+          ? { ...prev, ...partial }
+          : {
+              sheetId: partial.sheetId || '',
+              sheetName: partial.sheetName || 'GroceryList',
+              syncEnabled: partial.syncEnabled ?? true,
+              ...partial,
+            }
+      );
+    },
+    [setConfigState]
+  );
 
-  const startAutoSync = useCallback((intervalMs = syncInterval) => {
-    stopAutoSync();
-    syncIntervalRef.current = window.setInterval(() => {
-      // Skip silently while the tab is hidden/backgrounded - no point polling a
-      // list nobody's looking at. A visibilitychange listener triggers a sync
-      // immediately when the tab becomes visible again.
-      if (document.visibilityState !== 'visible') {
-        return;
-      }
-      if (isMountedRef.current && !isSyncingRef.current && syncState.status !== 'syncing') {
-        // Check rate limiting before triggering periodic sync
-        const now = Date.now();
-        const timeSinceLastSync = now - lastSyncTimeRef.current;
-        if (timeSinceLastSync >= minSyncIntervalRef.current || lastSyncTimeRef.current === 0) {
-          syncNow().catch(console.error);
-        } else {
-          console.log('[GoogleSheets] Skipping periodic sync - rate limited');
-        }
-      }
-    }, intervalMs);
-  }, [syncInterval, syncState.status]);
-
-  const stopAutoSync = useCallback(() => {
-    if (syncIntervalRef.current) {
-      clearInterval(syncIntervalRef.current);
-      syncIntervalRef.current = null;
-    }
-  }, []);
-
-  const connect = useCallback((): Promise<void> => {
-    console.log('[useGoogleSheetsSync] >>> CONNECT CLICKED <<<');
-    console.log('[useGoogleSheetsSync] config:', config);
-    console.log('[useGoogleSheetsSync] GOOGLE_CLIENT_ID present:', !!GOOGLE_CLIENT_ID);
-
+  const connect = useCallback(async (): Promise<void> => {
     if (!config?.sheetId) {
       setError('Please enter a Google Sheet ID first');
       toast.error('Please enter a Google Sheet ID first');
-      return Promise.reject(new Error('No sheet ID'));
+      throw new Error('No sheet ID');
     }
-
     if (!GOOGLE_CLIENT_ID) {
       setError('Google Client ID not configured');
       toast.error('Google Sign-In not configured');
-      return Promise.reject(new Error('No client ID'));
+      throw new Error('No Client ID');
     }
 
-    // Set connecting state immediately
-    setSyncState(prev => ({ ...prev, status: 'connecting', lastError: undefined }));
+    setSyncState((prev) => ({ ...prev, status: 'connecting', lastError: undefined }));
     setError(null);
 
-    // Store sheet config in sessionStorage for after redirect
-    sessionStorage.setItem('google_sheets_sheet_id', config.sheetId);
-    sessionStorage.setItem('google_sheets_sheet_name', config.sheetName || 'GroceryList');
-
-    // For redirect mode: manually redirect to Google OAuth
-    redirectToGoogleOAuth(GOOGLE_CLIENT_ID);
-    console.log('[useGoogleSheetsSync] redirectToGoogleOAuth called - PAGE WILL REDIRECT TO GOOGLE');
-
-    // Return a promise that never resolves (page will redirect)
-    return new Promise(() => {});
-  }, [config, providedUserEmail, setConfig]);
+    // Navigates away. The promise resolves rather than hanging forever, so a
+    // caller awaiting connect() does not stall when navigation is blocked.
+    redirectToGoogleOAuth(GOOGLE_CLIENT_ID, {
+      sheetId: config.sheetId,
+      sheetName: config.sheetName || 'GroceryList',
+    });
+  }, [config?.sheetId, config?.sheetName]);
 
   const disconnect = useCallback(() => {
-    stopAutoSync();
     signOutGoogle();
-    setIsSignedIn(false);
+    setSignedInState(false);
     setUserEmail(null);
-    setSyncState(createInitialSyncState());
+    setSyncState({ status: 'disconnected', pendingWrites: 0 });
+    lastSyncedRef.current = new Map();
+    writeDirtyFlag(false);
+    engineRef.current = null;
     setConfig({ syncEnabled: false });
     toast.success('Disconnected from Google Sheets');
-  }, [setConfig, stopAutoSync]);
+  }, [setConfig]);
 
-  // Core sync function with proper locking and rate limiting
-  const syncNow = useCallback(async () => {
-    if (!config?.sheetId || !isSignedIn) {
-      return;
-    }
+  const createDeletionTombstone = useCallback(
+    (itemId: string) => {
+      addPendingDeletions([itemId], deviceIdRef.current);
+      onItemsChange((prev) => (prev ?? []).filter((item) => item.id !== itemId));
+      void syncNow();
+    },
+    [onItemsChange, syncNow]
+  );
 
-    // Rate limiting: enforce minimum interval between syncs. Instead of dropping
-    // the request outright (which would silently lose whatever change triggered
-    // this call until some other edit happens to retrigger it), reschedule it for
-    // when the minimum interval will have elapsed.
-    const now = Date.now();
-    const timeSinceLastSync = now - lastSyncTimeRef.current;
-    if (timeSinceLastSync < minSyncIntervalRef.current && lastSyncTimeRef.current > 0) {
-      const remainingWait = minSyncIntervalRef.current - timeSinceLastSync;
-      console.log('[GoogleSheets] Sync rate limited, retrying in', remainingWait, 'ms');
-      if (rateLimitedRetryRef.current) {
-        clearTimeout(rateLimitedRetryRef.current);
-      }
-      rateLimitedRetryRef.current = window.setTimeout(() => {
-        rateLimitedRetryRef.current = null;
-        if (isMountedRef.current) {
-          syncNow().catch(console.error);
-        }
-      }, remainingWait);
-      return;
-    }
+  // "Clear list" / "Clear completed": the same durable path as a single delete
+  // now that deletions are recorded in their own tab, so the other device
+  // cannot push the cleared items back.
+  const deleteItemsPermanently = useCallback(
+    (itemIds: string[]) => {
+      if (itemIds.length === 0) return;
+      addPendingDeletions(itemIds, deviceIdRef.current);
+      const remove = new Set(itemIds);
+      onItemsChange((prev) => (prev ?? []).filter((item) => !remove.has(item.id)));
+      void syncNow();
+    },
+    [onItemsChange, syncNow]
+  );
 
-    // Use a promise-based lock to prevent concurrent syncs
-    if (isSyncingRef.current) {
-      // If there's already a sync in progress, return that promise. If that
-      // in-flight sync already snapshotted the pending force-delete ids before
-      // this call (e.g. a new bulk clear just happened), its own write can't
-      // know about ids added after its snapshot - schedule exactly one follow-up
-      // sync once it settles, instead of leaving those ids to wait for the next
-      // periodic sync (up to 60s later). Guarded by forceDeleteFollowUpPendingRef
-      // so repeated calls while still in flight only ever queue one follow-up.
-      if (syncPromiseRef.current) {
-        if (!forceDeleteFollowUpPendingRef.current) {
-          forceDeleteFollowUpPendingRef.current = true;
-          syncPromiseRef.current.finally(() => {
-            forceDeleteFollowUpPendingRef.current = false;
-            if (isMountedRef.current) {
-              syncNow().catch(console.error);
-            }
-          });
-        }
-        return syncPromiseRef.current;
-      }
-      return;
-    }
+  const restoreItems = useCallback(
+    (items: GroceryItem[]) => {
+      if (items.length === 0) return;
+      const now = Date.now();
+      removePendingDeletions(items.map((item) => item.id));
 
-    // Create the sync promise and store it
-    const syncPromise = (async () => {
-      isSyncingRef.current = true;
-      abortControllerRef.current = new AbortController();
+      // `revivedAt` outranks the deletion record; without it the next merge
+      // would (correctly) keep the deletion and the undo would silently vanish.
+      const restored = items.map((item) => markItemRevived(item, userEmailRef.current, now));
 
-      try {
-        // Read the freshest local items via the ref, not the localItems captured
-        // when this callback was created - a check made while a previous sync is
-        // still in flight (network latency + the 1s debounce) must not be lost
-        // to a stale snapshot.
-        const currentLocalItems = itemsRef.current;
+      onItemsChange((prev) => {
+        const byId = new Map(restored.map((item) => [item.id, item]));
+        const existing = new Set((prev ?? []).map((item) => item.id));
+        return [
+          ...(prev ?? []).map((item) => byId.get(item.id) ?? item),
+          ...restored.filter((item) => !existing.has(item.id)),
+        ];
+      });
 
-        setSyncState(prev => ({ ...prev, status: 'syncing', pendingWrites: currentLocalItems.length }));
-        setError(null);
-
-        const sheetConfig = {
-          sheetId: config.sheetId,
-          sheetName: config.sheetName || 'GroceryList',
-          syncEnabled: true,
-        };
-
-        // 1. Fetch remote items - getAllGroceryItems already returns fully-parsed
-        // GroceryItem-shaped objects, no further conversion needed.
-        const remoteItems = await getAllGroceryItems(sheetConfig);
-
-        // 2. Merge local and remote per-item, last-write-wins by updatedAt.
-        // Tombstones always win regardless of timestamp - this is what lets a
-        // deletion propagate to a device that still has the plain item.
-        const { merged } = mergeLocalAndRemote(currentLocalItems, remoteItems);
-
-        // 3. Purge tombstones old enough that every device has almost certainly
-        // already synced past the deletion. Everything else - including recent
-        // tombstones - stays in finalItems, so it gets WRITTEN to the sheet as a
-        // tombstone row (not silently dropped): that's what lets another device
-        // that still has the plain item learn about the deletion instead of
-        // resurrecting it on its own next push.
-        // Ids from an explicit bulk clear (deleteItemsPermanently) are excluded
-        // outright instead of going through the tombstone-row path: the user just
-        // asked for those to be gone, so the sheet should actually look empty for
-        // them right away rather than showing a lingering flagged row for up to 7
-        // days. Read from persisted storage (not a bare ref) so a reload during
-        // the sync window doesn't lose track of which ids still need excluding -
-        // snapshot it now so a *new* clear requested while this exact sync is
-        // still in flight isn't cleared from storage below until its own write
-        // actually happens (the in-flight-race follow-up above is what picks up
-        // ids added after this snapshot).
-        const idsToForceDelete = readPendingDeleteIds();
-        const finalItems = purgeStaleTombstones(merged).filter(item => !idsToForceDelete.has(item.id));
-
-        // 4. Write final items back to sheets (with retry logic for quota errors)
-        const email = userEmail || providedUserEmail || 'unknown@user.com';
-        await syncWithRetry(sheetConfig, finalItems, email);
-
-        // The write above just confirmed those ids are actually gone from the
-        // sheet - remove exactly the ones this sync excluded (not the whole
-        // current set) from persisted storage, same success-based timing as
-        // before, just backed by localStorage instead of a bare ref.
-        if (idsToForceDelete.size > 0) {
-          const remaining = readPendingDeleteIds();
-          for (const id of idsToForceDelete) {
-            remaining.delete(id);
-          }
-          writePendingDeleteIds(remaining);
-        }
-
-        // 5. Update last synced items to prevent redundant syncs
-        lastSyncedItemsRef.current = JSON.stringify(finalItems.map(i => ({
-          id: i.id,
-          name: i.name,
-          checked: i.checked,
-          quantity: i.quantity,
-          category: i.category,
-          checkedAt: i.checkedAt,
-          updatedAt: i.updatedAt,
-          updatedBy: i.updatedBy,
-          isTombstone: i.isTombstone,
-        })));
-
-        // 6. Merge the sync result into whatever the CURRENT app state is (never
-        // replace wholesale with the pre-sync snapshot - a functional update reads
-        // the state at commit time, so any edit made during this sync is preserved).
-        // A tombstone arriving from remote (someone else deleted the item) lands in
-        // local storage here too, where the app's existing `!item.isTombstone` view
-        // filter hides it - and purgeStaleTombstones converges local storage to drop
-        // it for good once it's old enough, rather than only purging the sheet copy.
-        // Force-deleted ids are stripped here too, so a stale remote read that still
-        // reports the plain item can't resurrect it into local state either.
-        onItemsChange(current => purgeStaleTombstones(mergeLocalAndRemote(current ?? [], finalItems).merged).filter(item => !idsToForceDelete.has(item.id)));
-
-        // 7. Update sync state
-        const syncCompleteTime = Date.now();
-        lastSyncTimeRef.current = syncCompleteTime;
-        retryCountRef.current = 0; // Reset retry count on success
-        hasSyncErrorToastedRef.current = false; // Next failure gets a fresh toast
-
-        if (isMountedRef.current) {
-          setSyncState(prev => ({
-            ...prev,
-            status: 'synced',
-            lastSyncAt: syncCompleteTime,
-            pendingWrites: 0,
-            lastError: undefined,
-          }));
-        }
-      } catch (err) {
-        if (!isMountedRef.current) return;
-
-        // Check if it's a quota error and we should retry
-        const message = err instanceof Error ? err.message : 'Sync failed';
-        const isQuotaError = message.includes('quota') || message.includes('429') || message.includes('rate limit');
-
-        if (isQuotaError && retryCountRef.current < 3) {
-          retryCountRef.current++;
-          const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000); // Exponential backoff, max 30s
-          console.log(`[GoogleSheets] Quota error, retrying in ${delay}ms (attempt ${retryCountRef.current}/3)`);
-
-          setSyncState(prev => ({ ...prev, status: 'syncing', pendingWrites: itemsRef.current.length }));
-
-          // Wait and retry - transient/in-progress retries stay silent, no toast
-          await new Promise(resolve => setTimeout(resolve, delay));
-          isSyncingRef.current = false;
-          syncPromiseRef.current = null;
-
-          // Retry the sync
-          return syncNow();
-        }
-
-        setError(message);
-        setSyncState(prev => ({ ...prev, status: 'error', lastError: message, pendingWrites: 0 }));
-        console.error('[GoogleSheets] Sync failed:', err);
-
-        // Sync has failed terminally (retries exhausted or non-quota error) - show
-        // exactly one toast for this failure, not one per retry attempt, and don't
-        // repeat it while the same error persists (the header status icon already
-        // reflects the error state for as long as it's active).
-        if (!hasSyncErrorToastedRef.current) {
-          hasSyncErrorToastedRef.current = true;
-          if (isQuotaError) {
-            toast.error('Sync failed: Google Sheets API quota exceeded. Please wait a moment and try again.');
-          } else {
-            toast.error(`Sync failed: ${message}`);
-          }
-        }
-      } finally {
-        isSyncingRef.current = false;
-        syncPromiseRef.current = null;
-      }
-    })();
-
-    syncPromiseRef.current = syncPromise;
-    return syncPromise;
-  }, [config, isSignedIn, onItemsChange, userEmail, providedUserEmail]);
-
-
-  // Helper function to sync with retry logic for API quota errors
-  const syncWithRetry = useCallback(async (sheetConfig: any, items: GroceryItem[], email: string, maxRetries = 3) => {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        await syncItemsToSheets(sheetConfig, items, email);
-        return;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        const isQuotaError = message.includes('quota') || message.includes('429') || message.includes('rate limit');
-
-        if (isQuotaError && attempt < maxRetries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 30000); // Exponential backoff
-          console.log(`[GoogleSheets] Write quota error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-        throw err;
-      }
-    }
-  }, []);
-
-  // Helper to create a tombstone for deleted items
-  const createDeletionTombstone = useCallback((itemId: string) => {
-    const item = localItems.find(i => i.id === itemId);
-    if (!item) return;
-
-    const tombstone = createTombstone(item, userIdRef.current);
-    onItemsChange((prev: GroceryItem[] | undefined) => {
-      // Replace the item with its tombstone
-      return (prev ?? []).map(i => i.id === itemId ? tombstone : i);
-    });
-  }, [localItems, onItemsChange]);
-
-  // Bulk/explicit clear (e.g. "Clear List", "Clear Completed"): the user made a
-  // deliberate, decisive choice, so unlike a single-item delete these ids are
-  // removed outright - locally right away, and excluded from the sheet on the
-  // very next sync - rather than lingering as a tombstone row for up to 7 days.
-  // Trade-off: if another device edited one of these exact items in the last
-  // few seconds before this syncs, that edit is lost instead of preserved.
-  const deleteItemsPermanently = useCallback((itemIds: string[]) => {
-    if (itemIds.length === 0) return;
-    const idSet = new Set(itemIds);
-    const pending = readPendingDeleteIds();
-    itemIds.forEach(id => pending.add(id));
-    writePendingDeleteIds(pending);
-    onItemsChange((prev: GroceryItem[] | undefined) => (prev ?? []).filter(item => !idSet.has(item.id)));
-    syncNow().catch(console.error);
-  }, [onItemsChange, syncNow]);
-
-  // Undo for either delete path: cancel any pending force-delete for these ids
-  // and put the items back with a fresh timestamp, so they beat their own
-  // tombstone/deleted row when the next sync merges.
-  const restoreItems = useCallback((items: GroceryItem[]) => {
-    if (items.length === 0) return;
-
-    const pending = readPendingDeleteIds();
-    items.forEach(item => pending.delete(item.id));
-    writePendingDeleteIds(pending);
-
-    const restored = items.map(item => ({
-      ...item,
-      isTombstone: false,
-      updatedAt: Date.now(),
-      updatedBy: userIdRef.current,
-    }));
-
-    onItemsChange((prev: GroceryItem[] | undefined) => {
-      const byId = new Map(restored.map(item => [item.id, item]));
-      const existing = new Set((prev ?? []).map(item => item.id));
-      return [
-        ...(prev ?? []).map(item => byId.get(item.id) ?? item),
-        ...restored.filter(item => !existing.has(item.id)),
-      ];
-    });
-  }, [onItemsChange]);
+      void syncNow();
+    },
+    [onItemsChange, syncNow]
+  );
 
   return {
     config: config ?? null,
     setConfig,
     syncState,
     isConnected: syncState.status === 'synced' || syncState.status === 'syncing',
-    isSignedIn,
+    isSignedIn: signedIn,
     userEmail,
     connect,
-    disconnect: disconnect as () => void,
-    syncNow,
+    disconnect,
+    syncNow: syncNow as () => Promise<void>,
     createDeletionTombstone,
     deleteItemsPermanently,
     restoreItems,

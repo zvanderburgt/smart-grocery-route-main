@@ -1,338 +1,316 @@
-import { describe, it, expect } from 'vitest';
-import {
-  mergeLocalAndRemote,
-  itemsToRows,
-  rowsToItems,
-  createInitialSyncState,
-  purgeStaleTombstones,
-  createTombstone,
-  TOMBSTONE_RETENTION_MS,
-} from '../lib/sync-engine';
-import { GroceryItem, GoogleSheetsRow } from '../lib/types';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createSyncEngine, type SyncEngine } from '@/lib/sync-engine';
+import { ITEM_HEADER } from '@/lib/sync-model';
+import type { GroceryItem } from '@/lib/types';
+import { createFakeSheets, type FakeSheets } from './fixtures/fake-sheets';
 
-describe('sync-engine', () => {
-  const createItem = (overrides: Partial<GroceryItem> = {}): GroceryItem => ({
-    id: '1',
-    name: 'Apples',
+let clock = 1000;
+
+function item(overrides: Partial<GroceryItem>): GroceryItem {
+  return {
+    id: 'milk',
+    name: 'Milk',
     checked: false,
-    addedAt: Date.now(),
+    addedAt: 100,
+    updatedAt: 100,
+    updatedBy: 'me@example.com',
     ...overrides,
+  };
+}
+
+function makeEngine(fake: FakeSheets, deviceId = 'device-a', email = 'me@example.com'): SyncEngine {
+  return createSyncEngine({
+    api: fake.api,
+    getConfig: () => ({ sheetId: 'sheet-1', sheetName: 'GroceryList' }),
+    deviceId,
+    getUserEmail: () => email,
+    now: () => clock,
+  });
+}
+
+function dataRows(fake: FakeSheets): unknown[][] {
+  return fake.state
+    .rowsFor('GroceryList')
+    .slice(1)
+    .filter((row) => row.some((cell) => cell !== '' && cell !== undefined));
+}
+
+function deletionRows(fake: FakeSheets): unknown[][] {
+  return fake.state
+    .rowsFor('Deletions')
+    .slice(1)
+    .filter((row) => row.some((cell) => cell !== '' && cell !== undefined));
+}
+
+beforeEach(() => {
+  clock = 1000;
+});
+
+describe('sync engine: sheet structure', () => {
+  it('creates both tabs, writes headers once and appends local items', async () => {
+    const fake = createFakeSheets();
+    const engine = makeEngine(fake);
+
+    const result = await engine.sync([item({ id: 'milk' }), item({ id: 'eggs', name: 'Eggs' })], []);
+
+    expect(fake.state.tables.has('GroceryList')).toBe(true);
+    expect(fake.state.tables.has('Deletions')).toBe(true);
+    expect(fake.state.rowsFor('GroceryList')[0]).toEqual([...ITEM_HEADER]);
+    expect(dataRows(fake)).toHaveLength(2);
+    expect(result.appendedRows).toBe(2);
+    expect(fake.state.valueInputOptions).toEqual(new Set(['RAW']));
   });
 
-  describe('mergeLocalAndRemote', () => {
-    it('merges items with no conflicts when only in one list', () => {
-      const local = [createItem({ id: '1', name: 'Apples' })];
-      const remote = [createItem({ id: '2', name: 'Bananas' })];
+  it('writes nothing when the sheet already matches the local list', async () => {
+    const fake = createFakeSheets();
+    const engine = makeEngine(fake);
+    const items = [item({ id: 'milk' }), item({ id: 'eggs', name: 'Eggs' })];
 
-      const { merged } = mergeLocalAndRemote(local, remote);
+    await engine.sync(items, []);
+    const writesAfterFirst = fake.state.writeCount();
 
-      expect(merged).toHaveLength(2);
-      expect(merged.map(m => m.name).sort()).toEqual(['Apples', 'Bananas']);
-    });
+    const second = await engine.sync(items, []);
 
-    it('uses last-write-wins when same item in both, without reporting a conflict', () => {
-      const baseTime = Date.now();
-      const local = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, checkedAt: baseTime + 1000 })];
-      const remote = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, checkedAt: baseTime + 500 })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].checkedAt).toBe(baseTime + 1000); // local is newer
-    });
-
-    it('prefers remote when remote is newer', () => {
-      const baseTime = Date.now();
-      const local = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, checkedAt: baseTime + 500 })];
-      const remote = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, checkedAt: baseTime + 1000 })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged[0].checkedAt).toBe(baseTime + 1000); // remote is newer
-    });
-
-    it('handles local-only deletion (item only in local)', () => {
-      const local = [createItem({ id: '1', name: 'Apples' })];
-      const remote: GroceryItem[] = [];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].id).toBe('1');
-    });
-
-    it('handles remote-only item (item only in remote)', () => {
-      const local: GroceryItem[] = [];
-      const remote = [createItem({ id: '1', name: 'Apples' })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].id).toBe('1');
-    });
-
-    it('does not revert a locally checked item when remote is a stale unchecked snapshot', () => {
-      // Regression test for the reported bug: user checks an item while a sync
-      // using a stale (unchecked) remote snapshot is still in flight. The merge
-      // must keep the newer local (checked) state, not silently flag a conflict
-      // and fall back to reverting it.
-      const baseTime = Date.now();
-      const local = [createItem({ id: '1', name: 'Milk', checked: true, addedAt: baseTime, updatedAt: baseTime + 2000 })];
-      const remote = [createItem({ id: '1', name: 'Milk', checked: false, addedAt: baseTime, updatedAt: baseTime })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].checked).toBe(true);
-    });
-
-    it('does not revert a locally checked item when remote has a NaN updatedAt (Finding 11 - second mechanism behind the revert bug)', () => {
-      // A hand-edited or format-mangled updatedAt cell (e.g. "abc") used to come
-      // back from rowToItem as NaN, not undefined. NaN breaks both === and >
-      // comparisons, so the old getItemUpdatedAt/merge logic fell through to the
-      // "remote is newer" else-branch and let a garbage remote row win every
-      // time - reverting the user's real edit on every subsequent sync, not just
-      // during a race. getItemUpdatedAt must now treat a non-finite resolved
-      // value as 0 (oldest), so local's real edit wins instead.
-      const baseTime = Date.now();
-      const local = [createItem({ id: '1', name: 'Milk', checked: true, addedAt: baseTime, updatedAt: baseTime + 2000 })];
-      const remote = [createItem({ id: '1', name: 'Milk', checked: false, addedAt: baseTime, updatedAt: NaN })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].checked).toBe(true);
-    });
-
-    it('does not revert a locally checked item when remote has no timestamps at all and addedAt of 0 (Finding 11)', () => {
-      // With the Finding 11/14 rowToItem fix, a remote row with entirely unknown
-      // history resolves to updatedAt=undefined, checkedAt=undefined, addedAt=0 -
-      // getItemUpdatedAt must resolve that to 0, not Date.now(), so it can never
-      // beat a real local edit.
-      const baseTime = Date.now();
-      const local = [createItem({ id: '1', name: 'Milk', checked: true, addedAt: baseTime, updatedAt: baseTime + 2000 })];
-      const remote = [createItem({ id: '1', name: 'Milk', checked: false, addedAt: 0, updatedAt: undefined, checkedAt: undefined })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].checked).toBe(true);
-    });
-
-    it('tombstone wins over a plain remote item regardless of timestamp', () => {
-      const baseTime = Date.now();
-      const local = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, isTombstone: true, updatedAt: baseTime })];
-      const remote = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, updatedAt: baseTime + 5000 })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].isTombstone).toBe(true);
-    });
-
-    it('tombstone wins over a plain local item regardless of timestamp', () => {
-      const baseTime = Date.now();
-      const local = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, updatedAt: baseTime + 5000 })];
-      const remote = [createItem({ id: '1', name: 'Apples', addedAt: baseTime, isTombstone: true, updatedAt: baseTime })];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].isTombstone).toBe(true);
-    });
-
-    it('passes through a tombstone that only exists on one side (merge itself never filters tombstones out)', () => {
-      // Merge's job is only to resolve which side wins per item id - it always
-      // keeps a tombstone tagged isTombstone so callers can decide what to do
-      // with it (write it as a tombstone row, filter it from the visible list,
-      // purge it once stale, etc.) rather than silently dropping it here.
-      const local = [createItem({ id: '1', name: 'Apples', isTombstone: true })];
-      const remote: GroceryItem[] = [];
-
-      const { merged } = mergeLocalAndRemote(local, remote);
-
-      expect(merged).toHaveLength(1);
-      expect(merged[0].isTombstone).toBe(true);
-    });
+    expect(fake.state.writeCount()).toBe(writesAfterFirst);
+    expect(second.writtenRows).toBe(0);
+    expect(second.appendedRows).toBe(0);
   });
 
-  describe('purgeStaleTombstones', () => {
-    it('drops a tombstone older than the retention window', () => {
-      const now = Date.now();
-      const items = [
-        createItem({ id: '1', name: 'Milk', isTombstone: true, updatedAt: now - TOMBSTONE_RETENTION_MS - 1 }),
-      ];
+  it('reports a mismatched header instead of rewriting it', async () => {
+    const fake = createFakeSheets({ items: [['id', 'name', 'my-own-column'], ['milk', 'Milk', 'keep me']] });
+    const engine = makeEngine(fake);
 
-      const result = purgeStaleTombstones(items, TOMBSTONE_RETENTION_MS, now);
+    const structure = await engine.sync([item({ id: 'milk' })], []);
+    expect(structure.writtenRows).toBeGreaterThanOrEqual(0);
 
-      expect(result).toHaveLength(0);
-    });
-
-    it('keeps a tombstone still within the retention window', () => {
-      const now = Date.now();
-      const items = [
-        createItem({ id: '1', name: 'Milk', isTombstone: true, updatedAt: now - 1000 }),
-      ];
-
-      const result = purgeStaleTombstones(items, TOMBSTONE_RETENTION_MS, now);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('1');
-    });
-
-    it('never drops a non-tombstone item, regardless of age', () => {
-      const now = Date.now();
-      const items = [
-        createItem({ id: '1', name: 'Milk', isTombstone: false, updatedAt: now - TOMBSTONE_RETENTION_MS * 10 }),
-      ];
-
-      const result = purgeStaleTombstones(items, TOMBSTONE_RETENTION_MS, now);
-
-      expect(result).toHaveLength(1);
-    });
+    const ensured = await engine.ensureSheets();
+    expect(ensured.headerWarning).toMatch(/does not match/);
+    expect(fake.state.rowsFor('GroceryList')[0]).toEqual(['id', 'name', 'my-own-column']);
   });
 
-  describe('tombstone propagation across a sync round-trip (regression for Finding 9)', () => {
-    // Simulates two devices sharing one sheet, exercising the exact sequence
-    // syncNow runs: merge local+remote, purge stale tombstones, "write" the
-    // result back as the new shared sheet state. Before this fix, finalItems
-    // stripped every tombstone unconditionally, so a deletion never reached
-    // the sheet - any other device that still had the plain item would merge
-    // "only in local" and resurrect it on its own next push.
-    function simulateSyncPush(deviceLocal: GroceryItem[], sheet: GroceryItem[], forceDeleteIds: Set<string> = new Set()): { newSheet: GroceryItem[]; newLocal: GroceryItem[] } {
-      const { merged } = mergeLocalAndRemote(deviceLocal, sheet);
-      const finalItems = purgeStaleTombstones(merged).filter(item => !forceDeleteIds.has(item.id));
-      const newLocal = purgeStaleTombstones(mergeLocalAndRemote(deviceLocal, finalItems).merged).filter(item => !forceDeleteIds.has(item.id));
-      return { newSheet: finalItems, newLocal };
-    }
+  it('keeps an item another device added instead of blanking its row', async () => {
+    const fake = createFakeSheets();
+    const engine = makeEngine(fake);
 
-    it('propagates a deletion from device A to device B instead of B resurrecting it', () => {
-      const baseTime = Date.now();
-      const item = createItem({ id: '1', name: 'Milk', checked: false, addedAt: baseTime, updatedAt: baseTime });
+    await engine.sync([item({ id: 'milk' })], []);
+    // The sheet gains a row this device has never seen (other phone added it).
+    fake.state.rowsFor('GroceryList').push(['eggs', 'Eggs', 'FALSE', '', 150, '', '', 150, 'other@example.com', 'FALSE', '']);
 
-      // Both devices, and the sheet, already have the plain item (fully synced
-      // before the deletion happens).
-      let sheet = [item];
-      let deviceB = [item];
+    clock = 2000;
+    const result = await engine.sync([item({ id: 'milk' })], []);
 
-      // Device A deletes it locally, then syncs (pushes to the sheet).
-      const deviceATombstone = createTombstone(item, 'deviceA@example.com');
-      const pushA = simulateSyncPush([deviceATombstone], sheet);
-      sheet = pushA.newSheet;
+    expect(result.items.map((entry) => entry.id).sort()).toEqual(['eggs', 'milk']);
+    expect(dataRows(fake).map((row) => row[0]).sort()).toEqual(['eggs', 'milk']);
+  });
+});
 
-      // The sheet must now carry the tombstone, not an empty/absent row.
-      expect(sheet).toHaveLength(1);
-      expect(sheet[0].isTombstone).toBe(true);
+describe('sync engine: write shape', () => {
+  it('updates only the changed rows, in a single batch, and never clears', async () => {
+    const fake = createFakeSheets();
+    const engine = makeEngine(fake);
+    const items = [
+      item({ id: 'a', name: 'Apples' }),
+      item({ id: 'b', name: 'Bread' }),
+      item({ id: 'c', name: 'Cheese' }),
+    ];
+    await engine.sync(items, []);
 
-      // Device B, still holding its stale plain copy, syncs next.
-      const pushB = simulateSyncPush(deviceB, sheet);
-      sheet = pushB.newSheet;
-      deviceB = pushB.newLocal;
+    const before = fake.state.calls.length;
+    clock = 2000;
+    await engine.sync([items[0], { ...items[1], checked: true, checkedAt: 2000 }, items[2]], []);
 
-      // Device B must adopt the tombstone locally (so its own UI hides the
-      // item) and must NOT push the plain item back, resurrecting it.
-      expect(deviceB).toHaveLength(1);
-      expect(deviceB[0].isTombstone).toBe(true);
-      expect(sheet).toHaveLength(1);
-      expect(sheet[0].isTombstone).toBe(true);
-    });
+    const newCalls = fake.state.calls.slice(before);
+    const writes = newCalls.filter((call) => call.method === 'batchUpdateValues');
+    expect(writes).toHaveLength(1);
+    expect(writes[0].rows).toBe(1);
+    expect(newCalls.some((call) => call.method === 'clearValues')).toBe(false);
+  });
+});
 
-    it('purges a tombstone from both the sheet and local state once it is stale', () => {
-      const now = Date.now();
-      const oldTombstone = createItem({ id: '1', name: 'Milk', isTombstone: true, updatedAt: now - TOMBSTONE_RETENTION_MS - 1 });
+describe('sync engine: deletes converge', () => {
+  it('propagates a single delete to the other device', async () => {
+    const fake = createFakeSheets();
+    const deviceA = makeEngine(fake, 'device-a');
+    const deviceB = makeEngine(fake, 'device-b');
 
-      const { newSheet, newLocal } = simulateSyncPush([oldTombstone], [oldTombstone]);
+    await deviceA.sync([item({ id: 'milk' })], []);
+    await deviceB.sync([item({ id: 'milk' })], []);
 
-      expect(newSheet).toHaveLength(0);
-      expect(newLocal).toHaveLength(0);
-    });
+    clock = 2000;
+    const deleted = await deviceA.sync([], [{ id: 'milk', deletedAt: clock, deviceId: 'device-a' }]);
+    expect(deleted.items).toEqual([]);
+    expect(deletionRows(fake)).toHaveLength(1);
 
-    it('an explicit bulk clear (forceDeleteIds) wipes the sheet row immediately instead of leaving a tombstone row', () => {
-      // Regression for "Clear List doesn't clear the sheet": bulk clear removes
-      // the item from local state entirely (not a tombstone) and force-excludes
-      // it from the write, so it does NOT linger in the sheet for 7 days the way
-      // an ordinary single-item delete's tombstone would.
-      const baseTime = Date.now();
-      const item = createItem({ id: '1', name: 'Milk', addedAt: baseTime, updatedAt: baseTime });
-      const sheet = [item];
-      const deviceLocalAfterBulkClear: GroceryItem[] = []; // item removed outright, no tombstone
-
-      const { newSheet, newLocal } = simulateSyncPush(deviceLocalAfterBulkClear, sheet, new Set(['1']));
-
-      expect(newSheet).toHaveLength(0);
-      expect(newLocal).toHaveLength(0);
-    });
-
-    it('without forceDeleteIds, the same hard local removal would resurrect the item from the sheet (why the mechanism exists)', () => {
-      // Contrast case: a plain local removal (no tombstone, no forceDeleteIds) is
-      // exactly the ORIGINAL Finding 9 bug - merge treats it as "only in remote"
-      // and pushes the plain item straight back into what gets written.
-      const baseTime = Date.now();
-      const item = createItem({ id: '1', name: 'Milk', addedAt: baseTime, updatedAt: baseTime });
-      const sheet = [item];
-      const deviceLocalAfterHardRemoval: GroceryItem[] = [];
-
-      const { newSheet } = simulateSyncPush(deviceLocalAfterHardRemoval, sheet); // no forceDeleteIds
-
-      expect(newSheet).toHaveLength(1); // resurrected - this is why bulk clear needs forceDeleteIds
-    });
+    // Device B still holds the item locally; its sync must drop it, not re-add it.
+    clock = 2100;
+    const staleB = await deviceB.sync([item({ id: 'milk' })], []);
+    expect(staleB.items).toEqual([]);
+    expect(dataRows(fake)).toHaveLength(0);
   });
 
-  describe('itemsToRows / rowsToItems', () => {
-    it('converts items to rows and back', () => {
-      const items = [
-        createItem({ id: '1', name: 'Apples', checked: true, checkedAt: Date.now(), category: 'produce', quantity: 5 }),
-        createItem({ id: '2', name: 'Bananas', checked: false, category: 'produce' }),
-      ];
+  it('does not resurrect a bulk-cleared list from the other device (regression)', async () => {
+    const fake = createFakeSheets();
+    const deviceA = makeEngine(fake, 'device-a');
+    const deviceB = makeEngine(fake, 'device-b');
+    const shared = [item({ id: 'milk' }), item({ id: 'eggs', name: 'Eggs' })];
 
-      const rows = itemsToRows(items, 'test@example.com');
-      const back = rowsToItems(rows);
+    await deviceA.sync(shared, []);
+    await deviceB.sync(shared, []);
 
-      expect(back).toHaveLength(2);
-      expect(back[0].id).toBe('1');
-      expect(back[0].name).toBe('Apples');
-      expect(back[0].checked).toBe(true);
-      expect(back[0].category).toBe('produce');
-      expect(back[0].quantity).toBe(5);
-      expect(back[1].id).toBe('2');
-      expect(back[1].checked).toBe(false);
-    });
+    clock = 3000;
+    await deviceA.sync(
+      [],
+      [
+        { id: 'milk', deletedAt: clock, deviceId: 'device-a' },
+        { id: 'eggs', deletedAt: clock, deviceId: 'device-a' },
+      ]
+    );
+    expect(dataRows(fake)).toHaveLength(0);
 
-    it('handles empty category and quantity', () => {
-      const items = [createItem({ id: '1', name: 'Apples', category: undefined, quantity: undefined })];
-
-      const rows = itemsToRows(items, 'test@example.com');
-      const back = rowsToItems(rows);
-
-      expect(back[0].category).toBeUndefined();
-      expect(back[0].quantity).toBeUndefined();
-    });
-
-    it('handles checkedAt as empty string from sheets', () => {
-      const rows: GoogleSheetsRow[] = [{
-        id: '1',
-        name: 'Apples',
-        checked: true,
-        checkedAt: '',
-        addedAt: Date.now(),
-        category: 'produce',
-        quantity: 5,
-        updatedAt: Date.now(),
-        updatedBy: 'test@example.com',
-      }];
-
-      const items = rowsToItems(rows);
-      expect(items[0].checkedAt).toBeUndefined();
-    });
+    clock = 3100;
+    const staleB = await deviceB.sync(shared, []);
+    expect(staleB.items).toEqual([]);
+    expect(dataRows(fake)).toHaveLength(0);
   });
 
-  describe('createInitialSyncState', () => {
-    it('creates initial disconnected state', () => {
-      const state = createInitialSyncState();
+  it('an undo outranks the deletion and sticks on both devices', async () => {
+    const fake = createFakeSheets();
+    const deviceA = makeEngine(fake, 'device-a');
+    const deviceB = makeEngine(fake, 'device-b');
 
-      expect(state.status).toBe('disconnected');
-      expect(state.pendingWrites).toBe(0);
-      expect(state.lastSyncAt).toBeUndefined();
+    await deviceA.sync([item({ id: 'milk' })], []);
+    await deviceB.sync([item({ id: 'milk' })], []);
+
+    clock = 4000;
+    await deviceA.sync([], [{ id: 'milk', deletedAt: clock, deviceId: 'device-a' }]);
+
+    clock = 5000;
+    const revived = await deviceB.sync([item({ id: 'milk', revivedAt: clock, updatedAt: clock })], []);
+    expect(revived.items.map((entry) => entry.id)).toEqual(['milk']);
+    expect(dataRows(fake)).toHaveLength(1);
+
+    // Device A re-reads: the revive must survive its own view of the deletion.
+    clock = 5100;
+    const deviceAAfter = await deviceA.sync([], []);
+    expect(deviceAAfter.items.map((entry) => entry.id)).toEqual(['milk']);
+  });
+
+  it('migrates legacy tombstone rows into deletion records and blanks them', async () => {
+    const fake = createFakeSheets({
+      items: [
+        [...ITEM_HEADER],
+        ['milk', 'Milk', 'FALSE', '', 100, '', '', 100, 'me', 'FALSE', ''],
+        ['eggs', 'Eggs', 'FALSE', '', 100, '', '', 150, 'me', 'TRUE', ''],
+      ],
     });
+    const engine = makeEngine(fake);
+
+    clock = 2000;
+    const result = await engine.sync([item({ id: 'milk' })], []);
+
+    expect(result.items.map((entry) => entry.id)).toEqual(['milk']);
+    expect(deletionRows(fake).map((row) => row[0])).toEqual(['eggs']);
+    expect(fake.state.rowsFor('GroceryList')[2]).toEqual(ITEM_HEADER.map(() => ''));
+  });
+});
+
+describe('sync engine: field-level merge', () => {
+  it('keeps a rename made on one device and a check made on the other', async () => {
+    const fake = createFakeSheets();
+    const deviceA = makeEngine(fake, 'device-a');
+    const deviceB = makeEngine(fake, 'device-b');
+
+    await deviceA.sync([item({ id: 'milk' })], []);
+
+    // A checks it off at t=2000; checking must not touch the content clock.
+    clock = 2000;
+    await deviceA.sync([item({ id: 'milk', checked: true, checkedAt: 2000, updatedAt: 100 })], []);
+
+    // B renames it at t=3000 from a stale "unchecked" copy.
+    clock = 3000;
+    const merged = await deviceB.sync([item({ id: 'milk', name: 'Whole Milk', updatedAt: 3000 })], []);
+
+    expect(merged.items[0].name).toBe('Whole Milk');
+    expect(merged.items[0].checked).toBe(true);
+
+    clock = 3100;
+    const fromA = await deviceA.sync([item({ id: 'milk', checked: true, checkedAt: 2000, updatedAt: 100 })], []);
+    expect(fromA.items[0].name).toBe('Whole Milk');
+    expect(fromA.items[0].checked).toBe(true);
+  });
+
+  it('converges on equal timestamps regardless of which device syncs first', async () => {
+    const fake = createFakeSheets();
+    const deviceA = makeEngine(fake, 'device-a');
+    const deviceB = makeEngine(fake, 'device-b');
+
+    await deviceA.sync([item({ id: 'milk', name: 'Milk A', updatedAt: 2000 })], []);
+    const bResult = await deviceB.sync([item({ id: 'milk', name: 'Milk B', updatedAt: 2000 })], []);
+
+    clock = 2100;
+    const aResult = await deviceA.sync([item({ id: 'milk', name: 'Milk A', updatedAt: 2000 })], []);
+
+    expect(aResult.items[0].name).toBe(bResult.items[0].name);
+  });
+
+  it('clamps a remote timestamp from a device with a fast clock', async () => {
+    clock = 10_000;
+    const farFuture = clock + 365 * 24 * 60 * 60 * 1000;
+    const fake = createFakeSheets({
+      items: [
+        [...ITEM_HEADER],
+        ['milk', 'Milk', 'FALSE', '', 100, '', '', farFuture, 'future-device', 'FALSE', ''],
+      ],
+    });
+    const engine = makeEngine(fake);
+
+    const result = await engine.sync([item({ id: 'milk', name: 'Milk (local)', updatedAt: 9000 })], []);
+
+    // A year-ahead clock is pulled back to "now" instead of winning forever.
+    expect(result.items[0].updatedAt).toBeLessThanOrEqual(clock);
+
+    // And a normal edit made after that still wins.
+    clock = 11_000;
+    const afterEdit = await engine.sync([item({ id: 'milk', name: 'Milk (local)', updatedAt: 11_000 })], []);
+    expect(afterEdit.items[0].name).toBe('Milk (local)');
+  });
+});
+
+describe('sync engine: concurrency', () => {
+  it('does not erase a row another device wrote mid-sync', async () => {
+    const fake = createFakeSheets();
+    const deviceA = makeEngine(fake, 'device-a');
+    await deviceA.sync([item({ id: 'milk' })], []);
+
+    // Device B appends its own item between A's read and A's write.
+    const originalGet = fake.api.getValues.bind(fake.api);
+    let injected = false;
+    fake.api.getValues = async (sheetId, range) => {
+      const values = await originalGet(sheetId, range);
+      if (!injected && range.includes('A2')) {
+        injected = true;
+        fake.state.rowsFor('GroceryList').push([
+          'eggs',
+          'Eggs',
+          'FALSE',
+          '',
+          150,
+          '',
+          '',
+          150,
+          'other@example.com',
+          'FALSE',
+          '',
+        ]);
+      }
+      return values;
+    };
+
+    clock = 3000;
+    await deviceA.sync([item({ id: 'milk', checked: true, checkedAt: 3000 })], []);
+
+    const ids = dataRows(fake).map((row) => row[0]);
+    expect(ids).toContain('eggs');
+    expect(ids).toContain('milk');
   });
 });

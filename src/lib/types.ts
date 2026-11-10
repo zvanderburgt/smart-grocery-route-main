@@ -6,9 +6,10 @@ export interface GroceryItem {
   addedAt: number;
   category?: string;
   quantity?: number;
-  updatedAt?: number; // Last modification timestamp
-  updatedBy?: string; // Email/user who last modified
-  isTombstone?: boolean; // Mark deleted items
+  updatedAt?: number; // Last content modification timestamp
+  updatedBy?: string; // Email/user/device who last modified
+  isTombstone?: boolean; // Legacy deletion marker (read-only; deletions now live in the Deletions tab)
+  revivedAt?: number; // Set on Undo so a restore can outrank the deletion that removed the item
 }
 
 export interface ItemRelationship {
@@ -111,24 +112,4 @@ export interface SyncState {
   lastError?: string;
   pendingWrites: number;
   remoteVersion?: number;
-}
-
-export interface GoogleSheetsRow {
-  id: string;
-  name: string;
-  checked: boolean;
-  checkedAt: number | '';
-  addedAt: number;
-  category: string;
-  quantity: number | '';
-  updatedAt: number;
-  updatedBy: string;
-  isTombstone?: boolean; // Mark deleted items
-}
-
-export interface SyncStats {
-  totalItems: number;
-  syncedItems: number;
-  conflictsResolved: number;
-  lastSyncDuration: number;
 }

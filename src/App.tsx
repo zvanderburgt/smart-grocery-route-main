@@ -8,7 +8,7 @@ import { GroceryLearningAlgorithm } from '@/lib/learning-algorithm'
 import { BrandLearningSystem } from '@/lib/brand-learning'
 import { parseItemWithQuantity, toTitleCase, sanitizeInput, normalizeItemKey } from '@/lib/utils'
 import { expandSections, findSectionsWithNewItems } from '@/lib/section-visibility'
-import { prepareItemForMutation, createNewItemWithSync, createTombstone } from '@/lib/item-mutations'
+import { prepareItemForMutation, createNewItemWithSync } from '@/lib/item-mutations'
 import { GrocerySection } from '@/components/GrocerySection'
 import { StatsCard } from '@/components/StatsCard'
 import { SmartSuggestions } from '@/components/SmartSuggestions'
@@ -458,7 +458,7 @@ function App() {
 
   const deleteItem = useCallback((id: string) => {
     const deleted = safeItems.find(item => item.id === id)
-    // Create tombstone for sync instead of just filtering
+    // Recorded as a deletion for sync (in the Deletions tab), not just filtered out.
     googleSheetsSync.createDeletionTombstone(id);
     if (deleted) {
       toast(`Removed ${deleted.name}`, {
