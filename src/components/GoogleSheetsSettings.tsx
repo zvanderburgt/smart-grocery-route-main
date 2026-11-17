@@ -25,10 +25,15 @@ interface GoogleSheetsSettingsProps {
   setSheetId: (id: string) => void
   syncState: SyncState
   onConnect: () => void
+  onReconnect: () => Promise<boolean>
   onDisconnect: () => void
   onSyncNow: () => void
   userEmail: string | null
   lastSyncTime: number | null
+  /** A session was lost to an expiry, so the next action is "reconnect", not "connect". */
+  needsReconnect?: boolean
+  /** True while a Google token is live, even when no email is known. */
+  sessionActive?: boolean
   standalone?: boolean
 }
 
@@ -104,10 +109,13 @@ export function GoogleSheetsSettings({
   setSheetId,
   syncState,
   onConnect,
+  onReconnect,
   onDisconnect,
   onSyncNow,
   userEmail,
   lastSyncTime,
+  needsReconnect = false,
+  sessionActive = false,
   standalone = false,
 }: GoogleSheetsSettingsProps) {
   const [showInstructions, setShowInstructions] = useState(false)
@@ -189,10 +197,17 @@ export function GoogleSheetsSettings({
               <Mailbox size={18} className="shrink-0 text-muted-foreground" />
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">
-                  {userEmail ? userEmail : 'Not connected'}
+                  {userEmail ??
+                    (needsReconnect
+                      ? 'Sign-in expired'
+                      : sessionActive
+                        ? 'Google account connected'
+                        : 'Not connected')}
                 </div>
-                {userEmail && (
-                  <div className="text-xs text-muted-foreground">Signed in</div>
+                {(sessionActive || needsReconnect) && (
+                  <div className="text-xs text-muted-foreground">
+                    {needsReconnect ? 'Reconnect to resume sync — your list is saved' : 'Signed in'}
+                  </div>
                 )}
               </div>
             </div>
@@ -209,12 +224,23 @@ export function GoogleSheetsSettings({
             ) : (
               <Button
                 size="sm"
-                onClick={handleConnect}
+                onClick={() => {
+                  if (!needsReconnect) {
+                    handleConnect()
+                    return
+                  }
+                  // Renew in place first: a tap is all GIS needs to hand back a
+                  // token for the session that already exists. The full consent
+                  // redirect is the fallback, not the first move.
+                  void onReconnect().then((ok) => {
+                    if (!ok) handleConnect()
+                  })
+                }}
                 disabled={isSyncing || !sheetId.trim()}
                 className={`shrink-0 ${TOUCH_TARGET}`}
               >
                 <CloudArrowUp size={14} className="mr-1.5 shrink-0" />
-                <span className="truncate">Connect</span>
+                <span className="truncate">{needsReconnect ? 'Reconnect' : 'Connect'}</span>
               </Button>
             )}
           </div>
@@ -354,7 +380,22 @@ export function GoogleSheetsSettings({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogAction onClick={() => onSyncNow()}>Retry Sync</AlertDialogAction>
+                <AlertDialogAction
+                  onClick={() => {
+                    if (!needsReconnect) {
+                      onSyncNow()
+                      return
+                    }
+                    // The failure was the session, not the data: renew in place
+                    // from this tap, and only fall back to consent if Google
+                    // will not hand a token back without it.
+                    void onReconnect().then((ok) => {
+                      if (!ok) onConnect()
+                    })
+                  }}
+                >
+                  {needsReconnect ? 'Reconnect' : 'Retry Sync'}
+                </AlertDialogAction>
                 <AlertDialogCancel>Dismiss</AlertDialogCancel>
               </AlertDialogFooter>
             </AlertDialogContent>

@@ -1385,6 +1385,9 @@ function App() {
           setSheetId={(id) => googleSheetsSync.setConfig({ sheetId: id })}
           syncState={googleSheetsSync.syncState}
           onConnect={googleSheetsSync.connect}
+          onReconnect={googleSheetsSync.reconnect}
+          needsReconnect={googleSheetsSync.needsReconnect}
+          sessionActive={googleSheetsSync.isSignedIn}
           onDisconnect={googleSheetsSync.disconnect}
           onSyncNow={googleSheetsSync.syncNow}
           userEmail={googleSheetsSync.userEmail}

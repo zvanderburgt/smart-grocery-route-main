@@ -45,6 +45,17 @@ describe('error classification', () => {
 });
 
 describe('createSheetsApi', () => {
+  it('passes an AuthRequiredError from the token layer straight through', async () => {
+    const authError = Object.assign(new Error('Google token request failed'), { name: 'AuthRequiredError' });
+    const { api, fetchImpl } = makeApi(() => jsonResponse(200, {}), {
+      getToken: vi.fn(async () => {
+        throw authError;
+      }),
+    });
+
+    await expect(api.getValues('sheet-1', 'GroceryList!A1:K2')).rejects.toBe(authError);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
   it('writes with RAW value input, not USER_ENTERED', async () => {
     const { api, fetchImpl } = makeApi(() => jsonResponse(200, {}));
 

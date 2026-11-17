@@ -31,6 +31,13 @@ const OAUTH_PENDING_KEY = 'google_sheets_oauth_pending';
 
 const TOKEN_SAFETY_WINDOW_MS = 60_000;
 
+/**
+ * How long a token request may go unanswered before the caller gets a
+ * recoverable error. GIS answers in well under a second when it can renew from
+ * the Google session; a blocked or dismissed request never answers at all.
+ */
+const TOKEN_REQUEST_TIMEOUT_MS = 15_000;
+
 export class AuthRequiredError extends Error {
   constructor(message = 'Google sign-in required') {
     super(message);
@@ -113,6 +120,10 @@ export function initGoogleAuth(clientIdValue: string): Promise<void> {
   clientId = clientIdValue;
   restoreToken();
 
+  // Idempotent: a retry after the script finally loads must not stack a second
+  // token client (and a second GIS polling loop) on top of the first.
+  if (tokenClient) return Promise.resolve();
+
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + 10_000;
 
@@ -161,14 +172,39 @@ export function initGoogleAuth(clientIdValue: string): Promise<void> {
   });
 }
 
-function requestTokenFromGis(): Promise<string> {
+function requestTokenFromGis(options: { timeoutMs?: number } = {}): Promise<string> {
   if (!tokenClient) {
     return Promise.reject(new AuthRequiredError('Google sign-in is not initialized'));
   }
 
+  const timeoutMs = options.timeoutMs ?? TOKEN_REQUEST_TIMEOUT_MS;
+
   return new Promise<string>((resolve, reject) => {
-    tokenResolver = resolve;
-    tokenRejecter = reject;
+    // A token request that neither callback answers (popup dismissed, Safari
+    // suspending the page, third-party storage blocked) used to leave this
+    // promise pending forever, which kept the sync lock closed. Time it out and
+    // hand the caller a recoverable AuthRequiredError instead.
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const settle = (finish: () => void) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      tokenResolver = null;
+      tokenRejecter = null;
+      finish();
+    };
+
+    timer = setTimeout(() => {
+      settle(() =>
+        reject(new AuthRequiredError('Google sign-in did not respond. Reconnect to try again.'))
+      );
+    }, timeoutMs);
+
+    tokenResolver = (token: string) => settle(() => resolve(token));
+    tokenRejecter = (error: Error) => settle(() => reject(error));
+
     (tokenClient as { requestAccessToken: (options: { prompt: string }) => void }).requestAccessToken({
       prompt: '',
     });
@@ -176,9 +212,9 @@ function requestTokenFromGis(): Promise<string> {
 }
 
 /** One refresh in flight at a time, shared by every caller that races it. */
-function refreshToken(): Promise<string> {
+function refreshToken(timeoutMs?: number): Promise<string> {
   if (!refreshPromise) {
-    refreshPromise = requestTokenFromGis().finally(() => {
+    refreshPromise = requestTokenFromGis({ timeoutMs }).finally(() => {
       refreshPromise = null;
     });
   }
@@ -187,6 +223,33 @@ function refreshToken(): Promise<string> {
 
 export function isSignedIn(): boolean {
   return !!accessToken && Date.now() < tokenExpiry - TOKEN_SAFETY_WINDOW_MS;
+}
+
+/** True while the token client exists, i.e. `initGoogleAuth` has succeeded. */
+export function isInitialized(): boolean {
+  return !!tokenClient;
+}
+
+/**
+ * Ask Google for a token without navigating away and without throwing.
+ *
+ * This is the recovery the app was missing: on a cold start, or after the
+ * hourly token lapse, `getAccessToken()` had no caller until something
+ * explicitly tried to sync - and every sync path is gated on being signed in,
+ * so nothing ever asked. Returning a boolean instead of throwing (or
+ * redirecting) lets the caller decide between carrying on, showing one
+ * "Reconnect" tap, or falling back to the full consent redirect.
+ */
+export async function trySilentSignIn(options: { timeoutMs?: number } = {}): Promise<boolean> {
+  if (isSignedIn()) return true;
+  if (!tokenClient) return false;
+
+  try {
+    await refreshToken(options.timeoutMs);
+    return isSignedIn();
+  } catch {
+    return false;
+  }
 }
 
 export async function getAccessToken(options: { forceRefresh?: boolean } = {}): Promise<string> {

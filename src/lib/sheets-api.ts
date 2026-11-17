@@ -132,6 +132,11 @@ export function createSheetsApi(options: SheetsApiOptions): SheetsApi {
       try {
         token = await options.getToken({ forceRefresh });
       } catch (error) {
+        // Keep the auth layer's own meaning. `AuthRequiredError` is what tells a
+        // caller "the session needs a reconnect, nothing was lost"; flattening it
+        // into a generic SheetsError made every expiry look like a plain sync
+        // failure and skipped the reconnect path entirely.
+        if (error instanceof Error && error.name === 'AuthRequiredError') throw error;
         throw new SheetsError(
           error instanceof Error ? error.message : 'Could not obtain a Google access token',
           'auth',

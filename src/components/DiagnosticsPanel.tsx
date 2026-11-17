@@ -62,10 +62,13 @@ interface DiagnosticsPanelProps {
   setSheetId: (id: string) => void
   syncState: import('@/lib/types').SyncState
   onConnect: () => void
+  onReconnect: () => Promise<boolean>
   onDisconnect: () => void
   onSyncNow: () => void
   userEmail: string | null
   lastSyncTime: number | null
+  needsReconnect?: boolean
+  sessionActive?: boolean
 }
 
 function formatBytes(bytes: number): string {
@@ -89,7 +92,7 @@ function formatTime(ms: number): string {
   return date.toLocaleDateString()
 }
 
-export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSuggestions, showConfidenceIndicators, onToggleConfidenceIndicators, hasLearningData, onClearLearningData, favoriteCount, onOpenFavorites, learnedBrandCount, onOpenBrandTraining, onOpenStats, onOpenLearningTip, sheetId, setSheetId, syncState, onConnect, onDisconnect, onSyncNow, userEmail, lastSyncTime }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSuggestions, showConfidenceIndicators, onToggleConfidenceIndicators, hasLearningData, onClearLearningData, favoriteCount, onOpenFavorites, learnedBrandCount, onOpenBrandTraining, onOpenStats, onOpenLearningTip, sheetId, setSheetId, syncState, onConnect, onReconnect, onDisconnect, onSyncNow, userEmail, lastSyncTime, needsReconnect, sessionActive }: DiagnosticsPanelProps) {
   const [swStatus, setSWStatus] = useState<SWStatus>({
     isRegistered: false,
     isActive: false,
@@ -970,10 +973,13 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                 setSheetId={setSheetId}
                 syncState={syncState}
                 onConnect={onConnect}
+                onReconnect={onReconnect}
                 onDisconnect={onDisconnect}
                 onSyncNow={onSyncNow}
                 userEmail={userEmail}
                 lastSyncTime={lastSyncTime}
+                needsReconnect={needsReconnect}
+                sessionActive={sessionActive}
               />
             </div>
 

@@ -16,7 +16,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocalStorage } from './use-local-storage';
 import type { GoogleSheetsConfig, SyncState, GroceryItem } from '@/lib/types';
 import { mergeItems, type DeletionRecord } from '@/lib/sync-model';
-import { createSheetsApi } from '@/lib/sheets-api';
+import { createSheetsApi, SheetsError } from '@/lib/sheets-api';
 import { createSyncEngine, type SyncEngine } from '@/lib/sync-engine';
 import { getDeviceId } from '@/lib/device-id';
 import { markItemRevived } from '@/lib/item-mutations';
@@ -25,9 +25,11 @@ import {
   getAccessToken,
   handleOAuthRedirect,
   initGoogleAuth,
+  isInitialized as isGoogleAuthInitialized,
   isSignedIn as isGoogleSignedIn,
   redirectToGoogleOAuth,
   signOut as signOutGoogle,
+  trySilentSignIn,
 } from '@/lib/google-auth';
 import { toast } from 'sonner';
 
@@ -37,7 +39,14 @@ const PENDING_DELETIONS_KEY = 'google-sheets-pending-deletions';
 const LEGACY_PENDING_DELETES_KEY = 'google-sheets-pending-deletes';
 const DIRTY_KEY = 'google-sheets-dirty';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+/**
+ * Read at call time, not module load: the value is baked in at build, but a
+ * function keeps it stubbable in tests and stops the constant from being the
+ * thing that decides whether the hook ever touches Google.
+ */
+function getGoogleClientId(): string {
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+}
 
 const MIN_SYNC_INTERVAL_MS = 5000;
 const LOCAL_CHANGE_DEBOUNCE_MS = 1000;
@@ -136,8 +145,10 @@ interface UseGoogleSheetsSyncReturn {
   syncState: SyncState;
   isConnected: boolean;
   isSignedIn: boolean;
+  needsReconnect: boolean;
   userEmail: string | null;
   connect: () => Promise<void>;
+  reconnect: () => Promise<boolean>;
   disconnect: () => void;
   syncNow: () => Promise<void>;
   createDeletionTombstone: (itemId: string) => void;
@@ -173,6 +184,7 @@ export function useGoogleSheetsSync({
   const [config, setConfigState] = useLocalStorage<GoogleSheetsConfig | null>(CONFIG_KEY, null);
   const [syncState, setSyncState] = useState<SyncState>({ status: 'disconnected', pendingWrites: 0 });
   const [signedIn, setSignedInState] = useState(false);
+  const [needsReconnect, setNeedsReconnect] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -190,6 +202,8 @@ export function useGoogleSheetsSync({
   const retryRef = useRef<number | null>(null);
   const quotaReschedulesRef = useRef(0);
   const errorToastedRef = useRef(false);
+  const authToastedRef = useRef(false);
+  const reconnectRef = useRef<(() => Promise<boolean>) | null>(null);
 
   useEffect(() => {
     itemsRef.current = localItems;
@@ -234,6 +248,47 @@ export function useGoogleSheetsSync({
       if (!current.has(id)) pending += 1;
     }
     return pending;
+  }, []);
+
+  /**
+   * Ask Google for a token from whatever session the browser already has, with
+   * no navigation and no throwing. Used on mount, when the app comes back
+   * online, and from the "Reconnect" tap.
+   *
+   * Gated on a configured sheet: a user who never set up sync must never see a
+   * Google account chooser.
+   */
+  const attemptSilentSignIn = useCallback(async (): Promise<boolean> => {
+    const clientId = getGoogleClientId();
+    if (!clientId) return false;
+
+    const currentConfig = configRef.current;
+    if (!currentConfig?.sheetId || !currentConfig.syncEnabled) return false;
+
+    // The GIS script is loaded async and can lose the race on a cold/offline
+    // launch. Retry the init here rather than staying dead for the whole
+    // session, which is what used to happen.
+    if (!isGoogleAuthInitialized()) {
+      try {
+        await initGoogleAuth(clientId);
+      } catch {
+        return false;
+      }
+    }
+
+    const ok = await trySilentSignIn();
+    if (!isMountedRef.current) return ok;
+
+    if (ok) {
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      setError(null);
+      authToastedRef.current = false;
+      setSyncState((prev) =>
+        prev.status === 'disconnected' ? { ...prev, status: 'connecting', lastError: undefined } : prev
+      );
+    }
+    return ok;
   }, []);
 
   const syncNow = useCallback(async (): Promise<void> => {
@@ -284,6 +339,8 @@ export function useGoogleSheetsSync({
         writeDirtyFlag(false);
         quotaReschedulesRef.current = 0;
         errorToastedRef.current = false;
+        authToastedRef.current = false;
+        setNeedsReconnect(false);
 
         // A header that does not match this build is reported, not rewritten.
         // ensureSheets() is memoized per engine, so this is a cached read.
@@ -308,8 +365,35 @@ export function useGoogleSheetsSync({
           pendingWrites: countPendingWrites(),
         }));
 
-        if (err instanceof AuthRequiredError) {
+        // A 401 that survives the one refresh-and-retry is also "reconnect", not
+        // a generic failure: the token was handed out and still refused.
+        const isAuthFailure =
+          err instanceof AuthRequiredError || (err instanceof SheetsError && err.kind === 'auth');
+
+        if (isAuthFailure) {
+          // Not "signed out": the pending deletions and the dirty flag are in
+          // localStorage, so nothing is lost — the session just needs one tap.
+          // Silently dropping to `signedIn: false` (the old behaviour, with the
+          // toast skipped) left the user to discover it in Settings and walk
+          // the whole consent screen again.
+          const authMessage = 'Google sign-in expired. Reconnect to resume syncing — nothing was lost.';
+          setError(authMessage);
           setSignedInState(false);
+          setNeedsReconnect(true);
+          setSyncState((prev) => ({ ...prev, status: 'error', lastError: authMessage }));
+
+          if (!authToastedRef.current) {
+            authToastedRef.current = true;
+            toast.error('Google sign-in expired — your list is saved', {
+              description: 'Reconnect to finish the sync. Nothing was lost.',
+              action: {
+                label: 'Reconnect',
+                onClick: () => {
+                  void reconnectRef.current?.();
+                },
+              },
+            });
+          }
           return;
         }
 
@@ -343,38 +427,87 @@ export function useGoogleSheetsSync({
   // Bootstrap auth once and consume an OAuth redirect return.
   useEffect(() => {
     isMountedRef.current = true;
-    if (!GOOGLE_CLIENT_ID) return;
 
-    initGoogleAuth(GOOGLE_CLIENT_ID)
-      .then(() => {
-        const redirect = handleOAuthRedirect();
+    // The OAuth response itself needs no GIS script, so consume it first: a
+    // slow or blocked script must not strand a token that is already in the URL.
+    const redirect = handleOAuthRedirect();
+    if (redirect) {
+      if (redirect.sheetId) {
+        setConfigState((prev) => ({
+          sheetId: redirect.sheetId as string,
+          sheetName: redirect.sheetName || prev?.sheetName || 'GroceryList',
+          syncEnabled: true,
+          connectedAccountEmail: prev?.connectedAccountEmail,
+          lastSyncAt: prev?.lastSyncAt,
+        }));
+      }
+      setSignedInState(true);
+      setNeedsReconnect(false);
+    }
+
+    void (async () => {
+      const clientId = getGoogleClientId();
+      if (!clientId) return;
+
+      try {
+        await initGoogleAuth(clientId);
+      } catch (err) {
+        // A token restored from storage still works without GIS; the
+        // online/visibility retry below picks the script up when it can load.
         if (!isMountedRef.current) return;
-
-        if (redirect) {
-          if (redirect.sheetId) {
-            setConfigState((prev) => ({
-              sheetId: redirect.sheetId as string,
-              sheetName: redirect.sheetName || prev?.sheetName || 'GroceryList',
-              syncEnabled: true,
-              connectedAccountEmail: prev?.connectedAccountEmail,
-              lastSyncAt: prev?.lastSyncAt,
-            }));
-          }
+        if (redirect || isGoogleSignedIn()) {
           setSignedInState(true);
-          return;
+          setNeedsReconnect(false);
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to initialize Google Sign-In');
         }
+        return;
+      }
 
-        setSignedInState(isGoogleSignedIn());
-      })
-      .catch((err) => {
-        if (!isMountedRef.current) return;
-        setError(err instanceof Error ? err.message : 'Failed to initialize Google Sign-In');
-      });
+      if (!isMountedRef.current) return;
+      if (redirect || isGoogleSignedIn()) {
+        setSignedInState(true);
+        setNeedsReconnect(false);
+      }
+    })();
 
     return () => {
       isMountedRef.current = false;
     };
   }, [setConfigState]);
+
+  // With a sheet configured but no live session, ask Google for a token before
+  // asking the user for anything. This is the recovery the app was missing:
+  // `signedIn` used to be decided exactly once per load, from sessionStorage,
+  // and every sync path is gated on it — so a cold start with empty
+  // sessionStorage (reopened PWA, new tab) or an hourly expiry left the app
+  // waiting for a consent screen nobody had been told to open.
+  useEffect(() => {
+    if (!config?.sheetId || !config.syncEnabled || signedIn) return;
+    // Once a sync has actually been rejected, wait for the user's tap (or for
+    // them to come back to the app) instead of immediately retrying: a token
+    // that is issued but still refused would otherwise ping-pong between
+    // "signed in" and "sync failed" as fast as the effects can run.
+    if (needsReconnect) return;
+    void attemptSilentSignIn();
+  }, [config?.sheetId, config?.syncEnabled, signedIn, needsReconnect, attemptSilentSignIn]);
+
+  // Same recovery when the network or the deferred GIS script comes back.
+  useEffect(() => {
+    if (signedIn) return;
+
+    const retry = () => {
+      if (document.visibilityState !== 'visible') return;
+      void attemptSilentSignIn();
+    };
+
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+    };
+  }, [signedIn, attemptSilentSignIn]);
 
   // First sync after connecting, and after any reload that left work behind.
   useEffect(() => {
@@ -483,7 +616,7 @@ export function useGoogleSheetsSync({
       toast.error('Please enter a Google Sheet ID first');
       throw new Error('No sheet ID');
     }
-    if (!GOOGLE_CLIENT_ID) {
+    if (!getGoogleClientId()) {
       setError('Google Sign-In not configured for this build');
       // Name the variable: this build-time setting is the only cause, and the
       // toast is the only place a user finds out.
@@ -496,15 +629,47 @@ export function useGoogleSheetsSync({
 
     // Navigates away. The promise resolves rather than hanging forever, so a
     // caller awaiting connect() does not stall when navigation is blocked.
-    redirectToGoogleOAuth(GOOGLE_CLIENT_ID, {
+    redirectToGoogleOAuth(getGoogleClientId(), {
       sheetId: config.sheetId,
       sheetName: config.sheetName || 'GroceryList',
     });
   }, [config?.sheetId, config?.sheetName]);
 
+  /**
+   * Renew in place, from the user's tap. GIS will hand back a token for the
+   * existing Google session without any consent UI when it is called from a
+   * gesture — which is exactly the call that fails silently from a background
+   * sync. The pending push (deletions + dirty flag) is still on disk, so a
+   * success here finishes the sync that failed.
+   */
+  const reconnect = useCallback(async (): Promise<boolean> => {
+    setError(null);
+    setSyncState((prev) => ({ ...prev, status: 'connecting', lastError: undefined }));
+
+    const ok = await attemptSilentSignIn();
+    if (!isMountedRef.current) return ok;
+
+    if (!ok) {
+      const message = 'Google sign-in needs one tap — press Connect in Settings.';
+      setNeedsReconnect(true);
+      setError(message);
+      setSyncState((prev) => ({ ...prev, status: 'error', lastError: message }));
+      return false;
+    }
+
+    await syncNow();
+    return true;
+  }, [attemptSilentSignIn, syncNow]);
+
+  useEffect(() => {
+    reconnectRef.current = reconnect;
+  }, [reconnect]);
+
   const disconnect = useCallback(() => {
     signOutGoogle();
     setSignedInState(false);
+    setNeedsReconnect(false);
+    authToastedRef.current = false;
     setUserEmail(null);
     setSyncState({ status: 'disconnected', pendingWrites: 0 });
     lastSyncedRef.current = new Map();
@@ -567,8 +732,10 @@ export function useGoogleSheetsSync({
     syncState,
     isConnected: syncState.status === 'synced' || syncState.status === 'syncing',
     isSignedIn: signedIn,
+    needsReconnect,
     userEmail,
     connect,
+    reconnect,
     disconnect,
     syncNow: syncNow as () => Promise<void>,
     createDeletionTombstone,

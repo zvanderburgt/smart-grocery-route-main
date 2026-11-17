@@ -134,6 +134,73 @@ describe('google auth: token handling', () => {
   });
 });
 
+describe('google auth: silent recovery', () => {
+  it('renews from the existing Google session without navigating away', async () => {
+    const auth = await freshAuthModule();
+    await auth.initGoogleAuth('client-123');
+
+    const pending = auth.trySilentSignIn();
+    tokenCallback?.({ access_token: 'tok-silent', expires_in: 3600 });
+
+    await expect(pending).resolves.toBe(true);
+    expect(auth.isSignedIn()).toBe(true);
+    expect(window.sessionStorage.getItem('google_sheets_access_token')).toBe('tok-silent');
+    expect(fakeLocation.href).toBe('https://app.example.com/');
+  });
+
+  it('reports failure instead of throwing when Google refuses', async () => {
+    const auth = await freshAuthModule();
+    await auth.initGoogleAuth('client-123');
+
+    const pending = auth.trySilentSignIn();
+    errorCallback?.();
+
+    await expect(pending).resolves.toBe(false);
+    expect(auth.isSignedIn()).toBe(false);
+  });
+
+  it('gives up when a token request is never answered, and stays usable afterwards', async () => {
+    const auth = await freshAuthModule();
+    await auth.initGoogleAuth('client-123');
+
+    await expect(auth.trySilentSignIn({ timeoutMs: 20 })).resolves.toBe(false);
+
+    // The wedged resolver must be gone, or the next attempt would join a
+    // promise that can never settle and the sync lock would never open.
+    const next = auth.getAccessToken();
+    expect(requestAccessToken).toHaveBeenCalledTimes(2);
+    tokenCallback?.({ access_token: 'tok-after-timeout', expires_in: 3600 });
+    await expect(next).resolves.toBe('tok-after-timeout');
+  });
+
+  it('reuses a restored sessionStorage token without asking Google', async () => {
+    window.sessionStorage.setItem('google_sheets_access_token', 'stored-token');
+    window.sessionStorage.setItem('google_sheets_token_expiry', String(Date.now() + 3_600_000));
+
+    const auth = await freshAuthModule();
+    await auth.initGoogleAuth('client-123');
+
+    await expect(auth.trySilentSignIn()).resolves.toBe(true);
+    expect(requestAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('initializes the token client once, however many times it is called', async () => {
+    const original = (
+      window as unknown as { google: { accounts: { oauth2: { initTokenClient: (c: unknown) => unknown } } } }
+    ).google.accounts.oauth2.initTokenClient;
+    const initSpy = vi.fn((config: unknown) => original(config));
+    (
+      window as unknown as { google: { accounts: { oauth2: { initTokenClient: (c: unknown) => unknown } } } }
+    ).google.accounts.oauth2.initTokenClient = initSpy;
+
+    const auth = await freshAuthModule();
+    await auth.initGoogleAuth('client-123');
+    await auth.initGoogleAuth('client-123');
+
+    expect(initSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('google auth: OAuth redirect', () => {
   it('sends a state nonce and keeps the sheet context out of the URL', async () => {
     const auth = await freshAuthModule();
