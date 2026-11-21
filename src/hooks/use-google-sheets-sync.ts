@@ -21,13 +21,22 @@ import { createSyncEngine, type SyncEngine } from '@/lib/sync-engine';
 import { getDeviceId } from '@/lib/device-id';
 import { markItemRevived } from '@/lib/item-mutations';
 import {
+  clearPairedSession,
+  claimPairingCode,
+  getPairedAccessToken,
+  getPairedSession,
+  type PairedSession,
+} from '@/lib/paired-auth';
+import {
   AuthRequiredError,
   getAccessToken,
+  handleOAuthCodeRedirect,
   handleOAuthRedirect,
   initGoogleAuth,
   isInitialized as isGoogleAuthInitialized,
   isSignedIn as isGoogleSignedIn,
   redirectToGoogleOAuth,
+  redirectToGoogleOAuthCode,
   signOut as signOutGoogle,
   trySilentSignIn,
 } from '@/lib/google-auth';
@@ -145,6 +154,19 @@ interface UseGoogleSheetsSyncReturn {
   syncState: SyncState;
   isConnected: boolean;
   isSignedIn: boolean;
+  /** This device holds a paired refresh token, so it needs no Google session. */
+  isPaired: boolean;
+  /** Code to type on the other device, after "Pair a device". */
+  pairingCode: string | null;
+  pairingExpiresAt: number | null;
+  pairingError: string | null;
+  /** Start the code flow that hands a refresh token to another device. */
+  startPairing: () => void;
+  /** Redeem a pairing code typed on this device. */
+  submitPairingCode: (code: string) => Promise<{ ok: boolean; error?: string }>;
+  dismissPairingCode: () => void;
+  /** Forget the paired session on this device. */
+  unpair: () => void;
   needsReconnect: boolean;
   userEmail: string | null;
   connect: () => Promise<void>;
@@ -184,6 +206,10 @@ export function useGoogleSheetsSync({
   const [config, setConfigState] = useLocalStorage<GoogleSheetsConfig | null>(CONFIG_KEY, null);
   const [syncState, setSyncState] = useState<SyncState>({ status: 'disconnected', pendingWrites: 0 });
   const [signedIn, setSignedInState] = useState(false);
+  const [paired, setPairedState] = useState(false);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingExpiresAt, setPairingExpiresAt] = useState<number | null>(null);
+  const [pairingError, setPairingError] = useState<string | null>(null);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +220,8 @@ export function useGoogleSheetsSync({
   const userEmailRef = useRef<string>(providedUserEmail || getDeviceId());
   const deviceIdRef = useRef(getDeviceId());
   const engineRef = useRef<SyncEngine | null>(null);
+  /** Read inside callbacks: a paired device never asks Google for a token. */
+  const pairedRef = useRef(false);
 
   const syncPromiseRef = useRef<Promise<void> | null>(null);
   const lastSyncedRef = useRef<Map<string, string>>(new Map());
@@ -221,7 +249,17 @@ export function useGoogleSheetsSync({
   const getEngine = useCallback((): SyncEngine => {
     if (!engineRef.current) {
       engineRef.current = createSyncEngine({
-        api: createSheetsApi({ getToken: (options) => getAccessToken(options) }),
+        api: createSheetsApi({
+          // A paired device refreshes with its own stored refresh token; the
+          // browser never sees a Google session.
+          getToken: async (options) => {
+            if (pairedRef.current) {
+              const { accessToken } = await getPairedAccessToken({ forceRefresh: options?.forceRefresh });
+              return accessToken;
+            }
+            return getAccessToken(options);
+          },
+        }),
         getConfig: () => ({
           sheetId: configRef.current?.sheetId ?? '',
           sheetName: configRef.current?.sheetName || 'GroceryList',
@@ -259,6 +297,13 @@ export function useGoogleSheetsSync({
    * Google account chooser.
    */
   const attemptSilentSignIn = useCallback(async (): Promise<boolean> => {
+    // A paired device is already authorised: the token comes from the pair.
+    if (pairedRef.current) {
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      return true;
+    }
+
     const clientId = getGoogleClientId();
     if (!clientId) return false;
 
@@ -370,6 +415,20 @@ export function useGoogleSheetsSync({
         const isAuthFailure =
           err instanceof AuthRequiredError || (err instanceof SheetsError && err.kind === 'auth');
 
+        if (isAuthFailure && pairedRef.current) {
+          // Google refused the paired refresh token: expired (they last seven
+          // days while the OAuth app is in Testing) or revoked.
+          clearPairedSession();
+          pairedRef.current = false;
+          setPairedState(false);
+          const pairMessage = 'This device needs to be paired again';
+          setError(pairMessage);
+          setPairingError(pairMessage);
+          setSignedInState(false);
+          setSyncState((prev) => ({ ...prev, status: 'error', lastError: pairMessage }));
+          return;
+        }
+
         if (isAuthFailure) {
           // Not "signed out": the pending deletions and the dirty flag are in
           // localStorage, so nothing is lost — the session just needs one tap.
@@ -424,9 +483,68 @@ export function useGoogleSheetsSync({
     return run;
   }, [countPendingWrites, getEngine, onItemsChange]);
 
+  /**
+   * Turn a pairing return into a code the other device can type. Deliberately
+   * silent on success beyond the code itself: the refresh token stays on the
+   * server until it is redeemed, never in this response.
+   */
+  const completePairing = useCallback(
+    async (result: { code: string; sheetId?: string; sheetName?: string }) => {
+      setPairingError(null);
+      try {
+        const response = await fetch('/api/oauth/pair', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            code: result.code,
+            redirectUri: window.location.origin,
+            sheetId: result.sheetId ?? configRef.current?.sheetId,
+            sheetName: result.sheetName ?? configRef.current?.sheetName,
+          }),
+        });
+        const body = (await response.json().catch(() => null)) as
+          | { ok?: boolean; code?: string; expiresAt?: number; error?: string }
+          | null;
+        if (!isMountedRef.current) return;
+        if (!response.ok || !body?.ok || !body.code) {
+          setPairingError(body?.error || 'Could not create a pairing code');
+          return;
+        }
+        setPairingCode(body.code);
+        setPairingExpiresAt(typeof body.expiresAt === 'number' ? body.expiresAt : null);
+      } catch {
+        if (isMountedRef.current) setPairingError('Could not reach the sync server');
+      }
+    },
+    []
+  );
+
   // Bootstrap auth once and consume an OAuth redirect return.
   useEffect(() => {
     isMountedRef.current = true;
+
+    // A pairing return is consumed first: it is a single-use code with a
+    // ten-minute life, and it needs no GIS script to exchange.
+    const pairReturn = handleOAuthCodeRedirect();
+    if (pairReturn) void completePairing(pairReturn);
+
+    // A device that already holds a paired session needs no Google work at all.
+    const storedPair = getPairedSession();
+    if (storedPair) {
+      pairedRef.current = true;
+      setPairedState(true);
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      if (storedPair.sheetId) {
+        const pairedSheetId = storedPair.sheetId;
+        setConfigState((prev) => ({
+          ...(prev ?? { sheetId: pairedSheetId, sheetName: 'GroceryList', syncEnabled: true }),
+          sheetId: pairedSheetId,
+          sheetName: storedPair.sheetName || prev?.sheetName || 'GroceryList',
+          syncEnabled: true,
+        }));
+      }
+    }
 
     // The OAuth response itself needs no GIS script, so consume it first: a
     // slow or blocked script must not strand a token that is already in the URL.
@@ -474,7 +592,7 @@ export function useGoogleSheetsSync({
     return () => {
       isMountedRef.current = false;
     };
-  }, [setConfigState]);
+  }, [completePairing, setConfigState]);
 
   // With a sheet configured but no live session, ask Google for a token before
   // asking the user for anything. This is the recovery the app was missing:
@@ -726,12 +844,91 @@ export function useGoogleSheetsSync({
     [onItemsChange, syncNow]
   );
 
+  /** Start the code flow that mints a refresh token for another device. */
+  const startPairing = useCallback(() => {
+    const clientId = getGoogleClientId();
+    if (!clientId) {
+      toast.error('Google Sign-In not configured (VITE_GOOGLE_CLIENT_ID missing)');
+      return;
+    }
+    if (!configRef.current?.sheetId) {
+      toast.error('Enter and save a Sheet ID first — the paired device inherits it');
+      return;
+    }
+    setPairingError(null);
+    try {
+      redirectToGoogleOAuthCode(clientId, {
+        sheetId: configRef.current.sheetId,
+        sheetName: configRef.current.sheetName,
+      });
+    } catch (error) {
+      setPairingError(error instanceof Error ? error.message : 'Could not start pairing');
+    }
+  }, []);
+
+  /** Redeem a code typed on this device and start syncing with it. */
+  const submitPairingCode = useCallback(
+    async (code: string): Promise<{ ok: boolean; error?: string }> => {
+      setPairingError(null);
+      const result = await claimPairingCode(code, {
+        sheetId: configRef.current?.sheetId,
+        sheetName: configRef.current?.sheetName,
+      });
+      if (!result.ok || !result.session) {
+        const message = result.error || 'Pairing failed';
+        setPairingError(message);
+        return { ok: false, error: message };
+      }
+
+      const session: PairedSession = result.session;
+      pairedRef.current = true;
+      setPairedState(true);
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      setError(null);
+      setConfigState((prev) => ({
+        ...(prev ?? { sheetId: session.sheetId ?? '', sheetName: 'GroceryList', syncEnabled: true }),
+        sheetId: session.sheetId || prev?.sheetId || '',
+        sheetName: session.sheetName || prev?.sheetName || 'GroceryList',
+        syncEnabled: true,
+      }));
+      setSyncState((prev) => ({ ...prev, status: 'connecting', lastError: undefined }));
+      return { ok: true };
+    },
+    [setConfigState]
+  );
+
+  const dismissPairingCode = useCallback(() => {
+    setPairingCode(null);
+    setPairingExpiresAt(null);
+  }, []);
+
+  /** Forget the pairing on this device; the sheet and the list stay put. */
+  const unpair = useCallback(() => {
+    clearPairedSession();
+    pairedRef.current = false;
+    setPairedState(false);
+    setSignedInState(false);
+    setError(null);
+    setPairingError(null);
+    setSyncState((prev) => ({ ...prev, status: 'disconnected', lastError: undefined }));
+    toast.success('Unpaired this device');
+  }, []);
+
   return {
     config: config ?? null,
     setConfig,
     syncState,
     isConnected: syncState.status === 'synced' || syncState.status === 'syncing',
     isSignedIn: signedIn,
+    isPaired: paired,
+    pairingCode,
+    pairingExpiresAt,
+    pairingError,
+    startPairing,
+    submitPairingCode,
+    dismissPairingCode,
+    unpair,
     needsReconnect,
     userEmail,
     connect,

@@ -18,10 +18,12 @@
  *    old code console.logged the GIS token response and the full page URL
  *    (which carries `access_token` in the fragment).
  *
- * The implicit flow is kept deliberately: switching to authorization-code+PKCE
- * is the better long-term shape (refresh tokens, hourly re-consent avoided), but
- * it requires adding the redirect URI in Google Cloud Console, so it stays a
- * documented upgrade rather than a silent break of existing connections.
+ * The implicit flow stays the default for the device you are using: switching
+ * everyone to code+PKCE would break existing connections for no visible gain.
+ * The **code** flow exists for one job only — "Pair a device", which needs an
+ * offline refresh token to hand to a device that cannot show Google's consent
+ * screen (see `paired-auth.ts`). Two redirect entry points, two separate pending
+ * records: a token return can never be mistaken for a pairing return.
  */
 
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
@@ -45,8 +47,18 @@ export class AuthRequiredError extends Error {
   }
 }
 
+/** `token` = implicit-flow return; `pair` = code-flow return for pairing. */
+type OAuthMode = 'token' | 'pair';
+
 interface PendingOAuth {
   state: string;
+  sheetId?: string;
+  sheetName?: string;
+  mode?: OAuthMode;
+}
+
+export interface PairingRedirectResult {
+  code: string;
   sheetId?: string;
   sheetName?: string;
 }
@@ -349,6 +361,10 @@ export function handleOAuthRedirect(): RedirectResult | null {
   const returnedState = params.get('state');
   const returnedToken = params.get('access_token');
 
+  // A pairing flow's pending record belongs to the code handler: bailing out
+  // before the single-use clear keeps it available for the ?code= return.
+  if (pending?.mode === 'pair') return null;
+
   // Consume the pending record either way - it is single-use.
   clearPendingOAuth();
   window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
@@ -356,7 +372,7 @@ export function handleOAuthRedirect(): RedirectResult | null {
   if (params.get('error')) {
     return null;
   }
-  if (!pending || !returnedState || returnedState !== pending.state) {
+  if (!pending || pending.mode === 'pair' || !returnedState || returnedState !== pending.state) {
     // A mismatched state means this fragment did not come from a sign-in this
     // device started; ignore it rather than trusting the token.
     return null;
@@ -371,6 +387,76 @@ export function handleOAuthRedirect(): RedirectResult | null {
     sheetId: pending.sheetId,
     sheetName: pending.sheetName,
   };
+}
+
+/**
+ * Start the code flow used by "Pair a device". `access_type=offline` plus
+ * `prompt=consent` is what makes Google return a refresh token at all — without
+ * the explicit consent prompt a repeat authorisation returns none.
+ */
+export function redirectToGoogleOAuthCode(
+  clientIdValue: string,
+  context: { sheetId?: string; sheetName?: string } = {}
+): void {
+  if (!clientIdValue) throw new Error('Google Client ID not configured');
+
+  const state = generateState();
+  try {
+    store().setItem(
+      OAUTH_PENDING_KEY,
+      JSON.stringify({
+        state,
+        sheetId: context.sheetId,
+        sheetName: context.sheetName,
+        mode: 'pair',
+      } satisfies PendingOAuth)
+    );
+  } catch {
+    throw new Error('Could not start pairing (browser storage unavailable)');
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientIdValue,
+    redirect_uri: window.location.origin,
+    response_type: 'code',
+    scope: SCOPES,
+    access_type: 'offline',
+    prompt: 'consent',
+    state,
+  });
+
+  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
+
+/**
+ * Consume a pairing return: `?code=…&state=…` in the query string. Rejects
+ * unless a pairing request on this device generated the state, so a code
+ * dropped into someone's URL bar is ignored rather than exchanged.
+ */
+export function handleOAuthCodeRedirect(): PairingRedirectResult | null {
+  let code = '';
+  let returnedState = '';
+  try {
+    const params = new URLSearchParams(window.location.search);
+    code = params.get('code') || '';
+    returnedState = params.get('state') || '';
+  } catch {
+    return null;
+  }
+  if (!code) return null;
+
+  const pending = readPendingOAuth();
+  clearPendingOAuth();
+  try {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } catch {
+    // ignore: the URL cleanup is cosmetic
+  }
+
+  if (!pending || pending.mode !== 'pair') return null;
+  if (!returnedState || returnedState !== pending.state) return null;
+
+  return { code, sheetId: pending.sheetId, sheetName: pending.sheetName };
 }
 
 export function getConfiguredClientId(): string | null {

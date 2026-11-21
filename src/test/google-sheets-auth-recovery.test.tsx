@@ -45,7 +45,9 @@ vi.mock('@/lib/google-auth', () => {
     trySilentSignIn: vi.fn(() => Promise.resolve(false)),
     getAccessToken: vi.fn(() => Promise.resolve('token')),
     handleOAuthRedirect: vi.fn(() => null),
+    handleOAuthCodeRedirect: vi.fn(() => null),
     redirectToGoogleOAuth: vi.fn(),
+    redirectToGoogleOAuthCode: vi.fn(),
     signOut: vi.fn(),
   };
 });

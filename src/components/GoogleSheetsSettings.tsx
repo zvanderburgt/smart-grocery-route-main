@@ -34,6 +34,15 @@ interface GoogleSheetsSettingsProps {
   needsReconnect?: boolean
   /** True while a Google token is live, even when no email is known. */
   sessionActive?: boolean
+  /** This device synced with a paired refresh token instead of a Google session. */
+  isPaired?: boolean
+  pairingCode?: string | null
+  pairingExpiresAt?: number | null
+  pairingError?: string | null
+  onStartPairing?: () => void
+  onSubmitPairingCode?: (code: string) => Promise<{ ok: boolean; error?: string }>
+  onDismissPairingCode?: () => void
+  onUnpair?: () => void
   standalone?: boolean
 }
 
@@ -116,11 +125,32 @@ export function GoogleSheetsSettings({
   lastSyncTime,
   needsReconnect = false,
   sessionActive = false,
+  isPaired = false,
+  pairingCode = null,
+  pairingExpiresAt = null,
+  pairingError = null,
+  onStartPairing,
+  onSubmitPairingCode,
+  onDismissPairingCode,
+  onUnpair,
   standalone = false,
 }: GoogleSheetsSettingsProps) {
   const [showInstructions, setShowInstructions] = useState(false)
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false)
   const [isSavingSheetId, setIsSavingSheetId] = useState(false)
+  const [enteredPairingCode, setEnteredPairingCode] = useState('')
+  const [isClaiming, setIsClaiming] = useState(false)
+  const [claimError, setClaimError] = useState<string | null>(null)
+
+  const handleClaimPairing = async () => {
+    if (!enteredPairingCode.trim() || !onSubmitPairingCode) return
+    setIsClaiming(true)
+    setClaimError(null)
+    const result = await onSubmitPairingCode(enteredPairingCode)
+    if (!result.ok) setClaimError(result.error ?? 'Pairing failed')
+    else setEnteredPairingCode('')
+    setIsClaiming(false)
+  }
 
   const handleSaveSheetId = () => {
     if (!sheetId.trim()) {
@@ -197,16 +227,22 @@ export function GoogleSheetsSettings({
               <Mailbox size={18} className="shrink-0 text-muted-foreground" />
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">
-                  {userEmail ??
+                  {isPaired
+                    ? "Paired device — syncing with its own token"
+                    : userEmail ??
                     (needsReconnect
                       ? 'Sign-in expired'
                       : sessionActive
                         ? 'Google account connected'
                         : 'Not connected')}
                 </div>
-                {(sessionActive || needsReconnect) && (
+                {(sessionActive || needsReconnect || isPaired) && (
                   <div className="text-xs text-muted-foreground">
-                    {needsReconnect ? 'Reconnect to resume sync — your list is saved' : 'Signed in'}
+                    {isPaired
+                      ? 'No Google session needed on this device'
+                      : needsReconnect
+                        ? 'Reconnect to resume sync — your list is saved'
+                        : 'Signed in'}
                   </div>
                 )}
               </div>
@@ -215,13 +251,19 @@ export function GoogleSheetsSettings({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowDisconnectConfirm(true)}
+                onClick={() => {
+                  if (isPaired) {
+                    onUnpair?.()
+                    return
+                  }
+                  setShowDisconnectConfirm(true)
+                }}
                 disabled={isSyncing}
                 className={`shrink-0 ${TOUCH_TARGET}`}
               >
-                Disconnect
+                {isPaired ? 'Unpair' : 'Disconnect'}
               </Button>
-            ) : (
+            ) : isPaired ? null : (
               <Button
                 size="sm"
                 onClick={() => {
@@ -311,6 +353,72 @@ export function GoogleSheetsSettings({
               </div>
             )}
           </div>
+        </div>
+
+        <Separator />
+
+        {/* Device pairing */}
+        <div className="space-y-3">
+          <h3 className="text-xs sm:text-sm font-semibold">This Device</h3>
+          {isPaired ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Paired. This device refreshes its own token — no Google sign-in here, and it keeps
+                working inside the panel.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onUnpair?.()}
+                disabled={!onUnpair}
+                className={`w-full justify-start gap-2 ${TOUCH_TARGET}`}
+              >
+                <CloudX size={14} className="shrink-0" />
+                <span>Unpair this device</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Sign in on a phone or computer, tap <strong>Pair a device</strong>, and type the code
+                it gives you here. This device then syncs without ever opening Google sign-in.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={enteredPairingCode}
+                  onChange={(e) => setEnteredPairingCode(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleClaimPairing()
+                  }}
+                  placeholder="ABCD-EFGH"
+                  aria-label="Pairing code"
+                  className="flex-1 min-w-0 pointer-coarse:min-h-11 font-mono uppercase tracking-wider"
+                  disabled={isClaiming}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => void handleClaimPairing()}
+                  disabled={isClaiming || !enteredPairingCode.trim() || !onSubmitPairingCode}
+                  className={`shrink-0 ${TOUCH_TARGET}`}
+                >
+                  {isClaiming ? 'Pairing…' : 'Pair'}
+                </Button>
+              </div>
+              {(claimError || pairingError) && (
+                <p className="text-xs text-destructive">{claimError ?? pairingError}</p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onStartPairing?.()}
+                disabled={!onStartPairing || !sheetId.trim()}
+                className={`w-full justify-start gap-2 ${TOUCH_TARGET}`}
+              >
+                <CloudArrowUp size={14} className="shrink-0" />
+                <span>Pair a device with this account</span>
+              </Button>
+            </div>
+          )}
         </div>
 
         <Separator />
@@ -409,6 +517,32 @@ export function GoogleSheetsSettings({
           </div>
         )}
       </div>
+
+      {/* Pairing code to type on the other device */}
+      <AlertDialog open={Boolean(pairingCode)} onOpenChange={() => onDismissPairingCode?.()}>
+        <AlertDialogContent className="z-[1000]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pairing code</AlertDialogTitle>
+            <AlertDialogDescription>
+              Type this into the other device: Settings → Google Sheets Sync → Pair. It works once and
+              expires in ten minutes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2 text-center">
+            <code className="inline-block rounded-lg bg-muted px-4 py-3 font-mono text-2xl tracking-[0.2em]">
+              {pairingCode}
+            </code>
+            {pairingExpiresAt && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Expires {new Date(pairingExpiresAt).toLocaleTimeString()}
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => onDismissPairingCode?.()}>Done</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Disconnect Confirmation */}
       <AlertDialog open={showDisconnectConfirm} onOpenChange={setShowDisconnectConfirm}>
