@@ -19,6 +19,7 @@ import { mergeItems, type DeletionRecord } from '@/lib/sync-model';
 import { createSheetsApi, SheetsError } from '@/lib/sheets-api';
 import { createSyncEngine, type SyncEngine } from '@/lib/sync-engine';
 import { RELAY_BASE_URL, probeRelay } from '@/lib/sync-relay';
+import { getRelayToken, relayLogin as requestRelayLogin } from '@/lib/relay-auth';
 import { getDeviceId } from '@/lib/device-id';
 import { markItemRevived } from '@/lib/item-mutations';
 import {
@@ -148,6 +149,10 @@ interface UseGoogleSheetsSyncReturn {
   isSignedIn: boolean;
   /** True when the deployment serves /api/sheets-relay: no Google session needed. */
   usingRelay: boolean;
+  /** The relay wants the shared password before it will sync. */
+  relayNeedsAuth: boolean;
+  /** Trade the relay password for a token, then sync. */
+  relayLogin: (password: string) => Promise<{ ok: boolean; error?: string }>;
   needsReconnect: boolean;
   userEmail: string | null;
   connect: () => Promise<void>;
@@ -188,6 +193,7 @@ export function useGoogleSheetsSync({
   const [syncState, setSyncState] = useState<SyncState>({ status: 'disconnected', pendingWrites: 0 });
   const [signedIn, setSignedInState] = useState(false);
   const [usingRelay, setUsingRelay] = useState(false);
+  const [relayNeedsAuth, setRelayNeedsAuth] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,6 +206,7 @@ export function useGoogleSheetsSync({
   const engineRef = useRef<SyncEngine | null>(null);
   /** Non-null once the deployment has proved it serves the relay. */
   const relayRef = useRef<{ sheetId: string } | null>(null);
+  const relayAuthRequiredRef = useRef(false);
 
   const syncPromiseRef = useRef<Promise<void> | null>(null);
   const lastSyncedRef = useRef<Map<string, string>>(new Map());
@@ -245,11 +252,15 @@ export function useGoogleSheetsSync({
       if (!info || cancelled || !isMountedRef.current) return;
 
       relayRef.current = { sheetId: info.sheetId };
+      relayAuthRequiredRef.current = Boolean(info.authRequired);
       // The API's baseUrl is fixed when the engine is built, so drop it and let
       // the next sync construct a relay-backed one.
       engineRef.current = null;
       setUsingRelay(true);
-      setSignedInState(true);
+      // With the gate on, "signed in" means "this device holds a relay token".
+      const holdsToken = !info.authRequired || Boolean(getRelayToken());
+      setRelayNeedsAuth(!holdsToken);
+      setSignedInState(holdsToken);
       setNeedsReconnect(false);
       setError(null);
       authToastedRef.current = false;
@@ -277,7 +288,7 @@ export function useGoogleSheetsSync({
         // pinned at construction, which is why adopting the relay resets the
         // engine rather than mutating it.
         api: createSheetsApi({
-          getToken: (options) => (relay ? Promise.resolve('relay') : getAccessToken(options)),
+          getToken: (options) => (relay ? Promise.resolve(getRelayToken()) : getAccessToken(options)),
           baseUrl: relay ? RELAY_BASE_URL : undefined,
         }),
         getConfig: () => ({
@@ -361,6 +372,13 @@ export function useGoogleSheetsSync({
     const currentConfig = configRef.current;
     if (!currentConfig?.sheetId || !currentConfig.syncEnabled) return;
 
+    // Gated relay with no token: asking would only earn a 401. Show the prompt
+    // instead of an error the user cannot act on.
+    if (relayAuthRequiredRef.current && !getRelayToken()) {
+      setRelayNeedsAuth(true);
+      return;
+    }
+
     // Offline: keep the intent, drop the request. A visibility/online listener
     // picks it up again; hammering a dead network just produced error toasts.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -435,6 +453,16 @@ export function useGoogleSheetsSync({
         // a generic failure: the token was handed out and still refused.
         const isAuthFailure =
           err instanceof AuthRequiredError || (err instanceof SheetsError && err.kind === 'auth');
+
+        if (isAuthFailure && relayRef.current) {
+          // The relay refused the token: expired, or the password changed.
+          setRelayNeedsAuth(true);
+          setSignedInState(false);
+          setNeedsReconnect(false);
+          setError('Sign in to sync');
+          setSyncState((prev) => ({ ...prev, status: 'error', lastError: 'Sign in to sync' }));
+          return;
+        }
 
         if (isAuthFailure) {
           // Not "signed out": the pending deletions and the dirty flag are in
@@ -809,6 +837,26 @@ export function useGoogleSheetsSync({
     [onItemsChange, syncNow]
   );
 
+  /**
+   * Password sign-in for the relay. On success the token is in localStorage, so
+   * the next sync carries it and the panel stays signed in across reloads (each
+   * top-level site gets its own storage partition, hence one sign-in per embed).
+   */
+  const relaySignIn = useCallback(
+    async (password: string): Promise<{ ok: boolean; error?: string }> => {
+      const result = await requestRelayLogin(password);
+      if (!result.ok) return result;
+      if (!isMountedRef.current) return result;
+      setRelayNeedsAuth(false);
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      setError(null);
+      await syncNow();
+      return result;
+    },
+    [syncNow]
+  );
+
   return {
     config: config ?? null,
     setConfig,
@@ -816,6 +864,8 @@ export function useGoogleSheetsSync({
     isConnected: syncState.status === 'synced' || syncState.status === 'syncing',
     isSignedIn: signedIn,
     usingRelay,
+    relayNeedsAuth,
+    relayLogin: relaySignIn,
     needsReconnect,
     userEmail,
     connect,

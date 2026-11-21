@@ -25,6 +25,8 @@ const RELAY_HEALTH_URL = '/api/sheets-relay/health';
 export interface RelayInfo {
   sheetId: string;
   sheetName?: string;
+  /** The deployment requires the shared password before it will sync. */
+  authRequired?: boolean;
 }
 
 let probe: Promise<RelayInfo | null> | null = null;
@@ -42,6 +44,7 @@ export function relayInfoFrom(body: unknown): RelayInfo | null {
   return {
     sheetId: candidate.sheetId,
     sheetName: typeof candidate.sheetName === 'string' ? candidate.sheetName : undefined,
+    authRequired: (candidate as { authRequired?: unknown }).authRequired === true,
   };
 }
 

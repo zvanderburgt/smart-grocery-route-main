@@ -62,7 +62,64 @@ describe('sheets relay function', () => {
     Object.assign(env(), ENV);
     const response = await relay.default(hit('health'));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, sheetId: ENV.SHEET_ID });
+    expect(await response.json()).toEqual({ ok: true, sheetId: ENV.SHEET_ID, authRequired: false });
+  });
+
+  it('flags the password gate in health when one is configured', async () => {
+    Object.assign(env(), ENV, { APP_PASSWORD: 'hunter2' });
+    const response = await relay.default(hit('health'));
+    expect(await response.json()).toEqual({ ok: true, sheetId: ENV.SHEET_ID, authRequired: true });
+    delete env().APP_PASSWORD;
+  });
+
+  it('refuses sync without a token when the gate is on', async () => {
+    Object.assign(env(), ENV, { APP_PASSWORD: 'hunter2' });
+    const response = await relay.default(
+      hit(`v4/spreadsheets/${ENV.SHEET_ID}/values/A1:B2`, { headers: { 'sec-fetch-site': 'same-origin' } })
+    );
+    expect(response.status).toBe(401);
+    expect(JSON.stringify(await response.json())).toContain('Sign in to sync');
+    delete env().APP_PASSWORD;
+  });
+
+  it('refuses a forged or truncated token', async () => {
+    Object.assign(env(), ENV, { APP_PASSWORD: 'hunter2' });
+    for (const token of ['', 'garbage', 'Zm9v.YmFy', `${btoa('{"exp":9999999999999}')}.YmFy`]) {
+      const response = await relay.default(
+        hit(`v4/spreadsheets/${ENV.SHEET_ID}/values/A1:B2`, {
+          headers: { 'sec-fetch-site': 'same-origin', authorization: `Bearer ${token}` },
+        })
+      );
+      expect(response.status).toBe(401);
+    }
+    delete env().APP_PASSWORD;
+  });
+
+  it('accepts a token minted by the login function', async () => {
+    Object.assign(env(), ENV, { APP_PASSWORD: 'hunter2' });
+    vi.resetModules();
+    const login = (await import('../../netlify/functions/relay-auth.mts')) as unknown as {
+      default: (request: Request) => Promise<Response>;
+    };
+    const granted = await login.default(
+      new Request('https://breadcrumbapp.netlify.app/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password: 'hunter2' }),
+      })
+    );
+    const { token } = (await granted.json()) as { token: string };
+    expect(token).toBeTruthy();
+
+    const fetchMock = stubGoogle(new Response(JSON.stringify({ values: [] }), { status: 200 }));
+    const response = await relay.default(
+      hit(`v4/spreadsheets/${ENV.SHEET_ID}/values/A1:B2`, {
+        headers: { 'sec-fetch-site': 'same-origin', authorization: `Bearer ${token}` },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
+    delete env().APP_PASSWORD;
   });
 
   it('refuses any spreadsheet other than the configured one', async () => {

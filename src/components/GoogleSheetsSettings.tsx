@@ -36,6 +36,9 @@ interface GoogleSheetsSettingsProps {
   sessionActive?: boolean
   /** The deployment serves /api/sheets-relay, so the credential lives server-side. */
   relayActive?: boolean
+  /** The relay refuses sync until the shared password is entered on this device. */
+  relayNeedsAuth?: boolean
+  onRelayLogin?: (password: string) => Promise<{ ok: boolean; error?: string }>
   standalone?: boolean
 }
 
@@ -119,11 +122,29 @@ export function GoogleSheetsSettings({
   needsReconnect = false,
   sessionActive = false,
   relayActive = false,
+  relayNeedsAuth = false,
+  onRelayLogin,
   standalone = false,
 }: GoogleSheetsSettingsProps) {
   const [showInstructions, setShowInstructions] = useState(false)
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false)
   const [isSavingSheetId, setIsSavingSheetId] = useState(false)
+  const [relayPassword, setRelayPassword] = useState('')
+  const [relayError, setRelayError] = useState<string | null>(null)
+  const [isRelaySigningIn, setIsRelaySigningIn] = useState(false)
+
+  const handleRelaySignIn = async () => {
+    if (!relayPassword.trim() || !onRelayLogin) return
+    setIsRelaySigningIn(true)
+    setRelayError(null)
+    const result = await onRelayLogin(relayPassword)
+    if (!result.ok) {
+      setRelayError(result.error ?? 'Sign-in failed')
+    } else {
+      setRelayPassword('')
+    }
+    setIsRelaySigningIn(false)
+  }
 
   const handleSaveSheetId = () => {
     if (!sheetId.trim()) {
@@ -230,7 +251,7 @@ export function GoogleSheetsSettings({
               >
                 Disconnect
               </Button>
-            ) : (
+            ) : relayActive ? null : (
               <Button
                 size="sm"
                 onClick={() => {
@@ -253,6 +274,38 @@ export function GoogleSheetsSettings({
               </Button>
             )}
           </div>
+
+          {relayActive && relayNeedsAuth && (
+            <div className="space-y-2 p-3 rounded-lg border bg-muted/30">
+              <p className="text-xs text-muted-foreground">
+                Sync is password-protected. Enter the shared password to sync this device — it is
+                remembered here, so this is a one-time step per device.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={relayPassword}
+                  onChange={(e) => setRelayPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleRelaySignIn()
+                  }}
+                  placeholder="Shared password"
+                  aria-label="Sync password"
+                  className="flex-1 min-w-0 pointer-coarse:min-h-11"
+                  disabled={isRelaySigningIn}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => void handleRelaySignIn()}
+                  disabled={isRelaySigningIn || !relayPassword.trim() || !onRelayLogin}
+                  className={`shrink-0 ${TOUCH_TARGET}`}
+                >
+                  {isRelaySigningIn ? 'Checking…' : 'Sign in'}
+                </Button>
+              </div>
+              {relayError && <p className="text-xs text-destructive">{relayError}</p>}
+            </div>
+          )}
         </div>
 
         <Separator />

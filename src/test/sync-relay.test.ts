@@ -19,11 +19,17 @@ describe('sync-relay probe', () => {
   });
 
   it('accepts only a configured relay payload', () => {
-    expect(relayInfoFrom({ ok: true, sheetId: 'abc' })).toEqual({ sheetId: 'abc', sheetName: undefined });
+    expect(relayInfoFrom({ ok: true, sheetId: 'abc' })).toEqual({
+      sheetId: 'abc',
+      sheetName: undefined,
+      authRequired: false,
+    });
     expect(relayInfoFrom({ ok: true, sheetId: 'abc', sheetName: 'GroceryList' })).toEqual({
       sheetId: 'abc',
       sheetName: 'GroceryList',
+      authRequired: false,
     });
+    expect(relayInfoFrom({ ok: true, sheetId: 'abc', authRequired: true })).toMatchObject({ authRequired: true });
     expect(relayInfoFrom({ ok: false, sheetId: 'abc' })).toBeNull();
     expect(relayInfoFrom({ ok: true, sheetId: '' })).toBeNull();
     expect(relayInfoFrom({ sheetId: 'abc' })).toBeNull();
@@ -52,7 +58,11 @@ describe('sync-relay probe', () => {
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await expect(probeRelay()).resolves.toEqual({ sheetId: 'sheet-123', sheetName: undefined });
+    await expect(probeRelay()).resolves.toEqual({
+      sheetId: 'sheet-123',
+      sheetName: undefined,
+      authRequired: false,
+    });
     await probeRelay();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

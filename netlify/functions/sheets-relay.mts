@@ -53,6 +53,42 @@ function readEnvVar(name: string): string {
   return (runtime.process?.env?.[name] || '').trim();
 }
 
+const encoder = new TextEncoder();
+
+/**
+ * The gate's token format lives here as well as in relay-auth.mts on purpose:
+ * Netlify bundles each function on its own, and a shared local module outside
+ * the functions directory is a resolution gamble for a handful of lines. Sign
+ * in relay-auth, verify here; keep the two in step if the format changes.
+ */
+function fromBase64Url(value: string): ArrayBuffer {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((value.length + 3) % 4);
+  const binary = atob(padded);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return buffer;
+}
+
+async function signingKey(password: string): Promise<CryptoKey> {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(`breadcrumb-relay-v1:${password}`));
+  return crypto.subtle.importKey('raw', digest, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+}
+
+async function verifyToken(token: string, password: string, now = Date.now()): Promise<boolean> {
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return false;
+  try {
+    const key = await signingKey(password);
+    const valid = await crypto.subtle.verify('HMAC', key, fromBase64Url(signature), encoder.encode(payload));
+    if (!valid) return false;
+    const claims = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as { exp?: unknown };
+    return typeof claims.exp === 'number' && claims.exp > now;
+  } catch {
+    return false;
+  }
+}
+
 function readEnv(): RelayEnv | null {
   const sheetId = readEnvVar('SHEET_ID');
   const clientId = readEnvVar('GOOGLE_CLIENT_ID');
@@ -109,7 +145,9 @@ export default async function handler(request: Request): Promise<Response> {
     if (!env) {
       return json({ ok: false, reason: 'relay not configured' }, 503);
     }
-    return json({ ok: true, sheetId: env.sheetId });
+    // `authRequired` tells the app whether to show the password prompt before
+    // it bothers syncing.
+    return json({ ok: true, sheetId: env.sheetId, authRequired: Boolean(readEnvVar('APP_PASSWORD')) });
   }
 
   if (!env) return json({ ok: false, reason: 'relay not configured' }, 503);
@@ -119,6 +157,19 @@ export default async function handler(request: Request): Promise<Response> {
   const site = request.headers.get('sec-fetch-site');
   if (site && site !== 'same-origin' && site !== 'same-site' && site !== 'none') {
     return json({ ok: false, reason: 'cross-site request refused' }, 403);
+  }
+
+  // Password gate. When APP_PASSWORD is set every relay call needs a token
+  // minted by /api/auth/login; without it the relay stays open (the behaviour
+  // before the gate existed).
+  const password = readEnvVar('APP_PASSWORD');
+  if (password) {
+    const header = request.headers.get('authorization') || '';
+    const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+    const valid = token ? await verifyToken(token, password) : false;
+    if (!valid) {
+      return json({ error: { message: 'Sign in to sync', status: 'UNAUTHENTICATED' } }, 401);
+    }
   }
 
   if (!ALLOWED_METHODS.has(request.method)) {

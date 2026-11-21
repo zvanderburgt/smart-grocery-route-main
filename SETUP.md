@@ -428,6 +428,29 @@ nothing changes — Google sign-in is still used.
 5. Redeploy, then check `https://breadcrumbapp.netlify.app/api/sheets-relay/health`
    returns `{"ok":true,"sheetId":"..."}`.
 
+**Password gate**
+
+Without it, anyone who visits the site can read and write that spreadsheet
+through the relay. Setting `APP_PASSWORD` closes that: every relay call then
+needs a token from `POST /api/auth/login`, which is just the shared password.
+
+| Variable | Value |
+| --- | --- |
+| `APP_PASSWORD` | the password you and your household type on each device |
+
+How it behaves:
+
+- Each device prompts once in Settings → Google Sheets Sync, then remembers the
+  token in that origin's `localStorage` for 90 days. A cookie would be blocked in
+  the cross-origin Home Assistant iframe; storage in the frame's own partition
+  is not.
+- The signing key is derived from `APP_PASSWORD`, so **changing the password
+  signs every device out** — that is the only revocation mechanism. To lock a
+  lost device out, change the password.
+- Wrong passwords are throttled per IP (8 per 10 minutes).
+- Leave `APP_PASSWORD` unset and the relay stays open, which is what earlier
+  deploys did.
+
 **What the relay will and will not do**
 
 - It serves exactly one spreadsheet (`SHEET_ID`) and refuses any other path.
