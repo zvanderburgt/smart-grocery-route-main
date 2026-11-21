@@ -18,6 +18,7 @@ import type { GoogleSheetsConfig, SyncState, GroceryItem } from '@/lib/types';
 import { mergeItems, type DeletionRecord } from '@/lib/sync-model';
 import { createSheetsApi, SheetsError } from '@/lib/sheets-api';
 import { createSyncEngine, type SyncEngine } from '@/lib/sync-engine';
+import { RELAY_BASE_URL, probeRelay } from '@/lib/sync-relay';
 import { getDeviceId } from '@/lib/device-id';
 import { markItemRevived } from '@/lib/item-mutations';
 import {
@@ -145,6 +146,8 @@ interface UseGoogleSheetsSyncReturn {
   syncState: SyncState;
   isConnected: boolean;
   isSignedIn: boolean;
+  /** True when the deployment serves /api/sheets-relay: no Google session needed. */
+  usingRelay: boolean;
   needsReconnect: boolean;
   userEmail: string | null;
   connect: () => Promise<void>;
@@ -184,6 +187,7 @@ export function useGoogleSheetsSync({
   const [config, setConfigState] = useLocalStorage<GoogleSheetsConfig | null>(CONFIG_KEY, null);
   const [syncState, setSyncState] = useState<SyncState>({ status: 'disconnected', pendingWrites: 0 });
   const [signedIn, setSignedInState] = useState(false);
+  const [usingRelay, setUsingRelay] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +198,8 @@ export function useGoogleSheetsSync({
   const userEmailRef = useRef<string>(providedUserEmail || getDeviceId());
   const deviceIdRef = useRef(getDeviceId());
   const engineRef = useRef<SyncEngine | null>(null);
+  /** Non-null once the deployment has proved it serves the relay. */
+  const relayRef = useRef<{ sheetId: string } | null>(null);
 
   const syncPromiseRef = useRef<Promise<void> | null>(null);
   const lastSyncedRef = useRef<Map<string, string>>(new Map());
@@ -218,10 +224,62 @@ export function useGoogleSheetsSync({
     if (providedUserEmail) setUserEmail(providedUserEmail);
   }, [providedUserEmail]);
 
+  /**
+   * Relay adoption.
+   *
+   * Some deployments cannot run a Google session in the page at all: inside an
+   * iframe Google refuses to serve its consent screen, and an Android webview
+   * hands the flow off to the system browser, so the token lands somewhere this
+   * page can never read. When the server answers `/api/sheets-relay/health` it
+   * owns the credential instead, and every device — panel, webview, phone —
+   * syncs with no sign-in step. The sheet id comes from the server because the
+   * relay only serves the one spreadsheet it was configured with.
+   *
+   * Nothing happens on a deployment without the relay: the probe fails and the
+   * hook keeps its original Google-sign-in behaviour.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const info = await probeRelay();
+      if (!info || cancelled || !isMountedRef.current) return;
+
+      relayRef.current = { sheetId: info.sheetId };
+      // The API's baseUrl is fixed when the engine is built, so drop it and let
+      // the next sync construct a relay-backed one.
+      engineRef.current = null;
+      setUsingRelay(true);
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      setError(null);
+      authToastedRef.current = false;
+      setConfigState((prev) => ({
+        ...(prev ?? { sheetId: info.sheetId, sheetName: 'GroceryList', syncEnabled: true }),
+        sheetId: info.sheetId,
+        sheetName: info.sheetName || prev?.sheetName || 'GroceryList',
+        syncEnabled: true,
+      }));
+      setSyncState((prev) =>
+        prev.status === 'disconnected' ? { ...prev, status: 'connecting', lastError: undefined } : prev
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setConfigState]);
+
   const getEngine = useCallback((): SyncEngine => {
     if (!engineRef.current) {
+      const relay = relayRef.current;
       engineRef.current = createSyncEngine({
-        api: createSheetsApi({ getToken: (options) => getAccessToken(options) }),
+        // In relay mode the "token" is a constant: the server holds the real
+        // credential and the request never leaves this origin. `baseUrl` is
+        // pinned at construction, which is why adopting the relay resets the
+        // engine rather than mutating it.
+        api: createSheetsApi({
+          getToken: (options) => (relay ? Promise.resolve('relay') : getAccessToken(options)),
+          baseUrl: relay ? RELAY_BASE_URL : undefined,
+        }),
         getConfig: () => ({
           sheetId: configRef.current?.sheetId ?? '',
           sheetName: configRef.current?.sheetName || 'GroceryList',
@@ -259,6 +317,14 @@ export function useGoogleSheetsSync({
    * Google account chooser.
    */
   const attemptSilentSignIn = useCallback(async (): Promise<boolean> => {
+    // Relay mode has no session to renew: the server owns the credential.
+    if (relayRef.current) {
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      setError(null);
+      return true;
+    }
+
     const clientId = getGoogleClientId();
     if (!clientId) return false;
 
@@ -611,6 +677,17 @@ export function useGoogleSheetsSync({
   );
 
   const connect = useCallback(async (): Promise<void> => {
+    // Relay mode: there is nothing to authorize, so "Connect" is just
+    // "enable sync and go". No navigation, which is the whole point.
+    if (relayRef.current) {
+      setConfig({ syncEnabled: true });
+      setSignedInState(true);
+      setNeedsReconnect(false);
+      setError(null);
+      await syncNow();
+      return;
+    }
+
     if (!config?.sheetId) {
       setError('Please enter a Google Sheet ID first');
       toast.error('Please enter a Google Sheet ID first');
@@ -645,6 +722,12 @@ export function useGoogleSheetsSync({
   const reconnect = useCallback(async (): Promise<boolean> => {
     setError(null);
     setSyncState((prev) => ({ ...prev, status: 'connecting', lastError: undefined }));
+
+    // Relay mode has no session to renew — retrying the sync is the whole fix.
+    if (relayRef.current) {
+      await syncNow();
+      return true;
+    }
 
     const ok = await attemptSilentSignIn();
     if (!isMountedRef.current) return ok;
@@ -732,6 +815,7 @@ export function useGoogleSheetsSync({
     syncState,
     isConnected: syncState.status === 'synced' || syncState.status === 'syncing',
     isSignedIn: signedIn,
+    usingRelay,
     needsReconnect,
     userEmail,
     connect,

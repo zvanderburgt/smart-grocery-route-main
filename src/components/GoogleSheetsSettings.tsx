@@ -34,6 +34,8 @@ interface GoogleSheetsSettingsProps {
   needsReconnect?: boolean
   /** True while a Google token is live, even when no email is known. */
   sessionActive?: boolean
+  /** The deployment serves /api/sheets-relay, so the credential lives server-side. */
+  relayActive?: boolean
   standalone?: boolean
 }
 
@@ -116,6 +118,7 @@ export function GoogleSheetsSettings({
   lastSyncTime,
   needsReconnect = false,
   sessionActive = false,
+  relayActive = false,
   standalone = false,
 }: GoogleSheetsSettingsProps) {
   const [showInstructions, setShowInstructions] = useState(false)
@@ -197,14 +200,20 @@ export function GoogleSheetsSettings({
               <Mailbox size={18} className="shrink-0 text-muted-foreground" />
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">
-                  {userEmail ??
-                    (needsReconnect
-                      ? 'Sign-in expired'
-                      : sessionActive
-                        ? 'Google account connected'
-                        : 'Not connected')}
+                  {relayActive
+                    ? 'Server relay connected'
+                    : userEmail ??
+                      (needsReconnect
+                        ? 'Sign-in expired'
+                        : sessionActive
+                          ? 'Google account connected'
+                          : 'Not connected')}
                 </div>
-                {(sessionActive || needsReconnect) && (
+                {relayActive ? (
+                  <div className="text-xs text-muted-foreground">
+                    Synced through this site's relay — no Google sign-in needed on this device
+                  </div>
+                ) : (sessionActive || needsReconnect) && (
                   <div className="text-xs text-muted-foreground">
                     {needsReconnect ? 'Reconnect to resume sync — your list is saved' : 'Signed in'}
                   </div>
@@ -236,7 +245,7 @@ export function GoogleSheetsSettings({
                     if (!ok) handleConnect()
                   })
                 }}
-                disabled={isSyncing || !sheetId.trim()}
+                disabled={isSyncing || (!relayActive && !sheetId.trim())}
                 className={`shrink-0 ${TOUCH_TARGET}`}
               >
                 <CloudArrowUp size={14} className="mr-1.5 shrink-0" />
@@ -257,7 +266,7 @@ export function GoogleSheetsSettings({
                 value={sheetId}
                 onChange={(e) => setSheetId(e.target.value)}
                 placeholder="Enter Sheet ID from URL"
-                disabled={isSavingSheetId}
+                disabled={isSavingSheetId || relayActive}
                 className="flex-1 min-w-0 pointer-coarse:min-h-11"
                 aria-label="Google Sheet ID"
               />
@@ -272,7 +281,11 @@ export function GoogleSheetsSettings({
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Found in the URL: <code className="font-mono bg-muted px-1 rounded wrap-anywhere">{'docs.google.com/spreadsheets/d/{SHEET_ID}/edit'}</code>
+              {relayActive ? (
+                <>Set on the server (<code className="font-mono bg-muted px-1 rounded">SHEET_ID</code>) and enforced by the relay.</>
+              ) : (
+                <>Found in the URL: <code className="font-mono bg-muted px-1 rounded wrap-anywhere">{'docs.google.com/spreadsheets/d/{SHEET_ID}/edit'}</code></>
+              )}
             </p>
           </div>
         </div>

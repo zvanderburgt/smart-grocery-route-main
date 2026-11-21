@@ -1388,6 +1388,7 @@ function App() {
           onReconnect={googleSheetsSync.reconnect}
           needsReconnect={googleSheetsSync.needsReconnect}
           sessionActive={googleSheetsSync.isSignedIn}
+          relayActive={googleSheetsSync.usingRelay}
           onDisconnect={googleSheetsSync.disconnect}
           onSyncNow={googleSheetsSync.syncNow}
           userEmail={googleSheetsSync.userEmail}
