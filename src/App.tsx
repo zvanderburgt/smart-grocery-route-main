@@ -1391,6 +1391,14 @@ function App() {
           relayActive={googleSheetsSync.usingRelay}
           relayNeedsAuth={googleSheetsSync.relayNeedsAuth}
           onRelayLogin={googleSheetsSync.relayLogin}
+          isPaired={googleSheetsSync.isPaired}
+          pairingCode={googleSheetsSync.pairingCode}
+          pairingExpiresAt={googleSheetsSync.pairingExpiresAt}
+          pairingError={googleSheetsSync.pairingError}
+          onStartPairing={googleSheetsSync.startPairing}
+          onSubmitPairingCode={googleSheetsSync.submitPairingCode}
+          onDismissPairingCode={googleSheetsSync.dismissPairingCode}
+          onUnpair={googleSheetsSync.unpair}
           onDisconnect={googleSheetsSync.disconnect}
           onSyncNow={googleSheetsSync.syncNow}
           userEmail={googleSheetsSync.userEmail}

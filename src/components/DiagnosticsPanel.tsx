@@ -73,6 +73,16 @@ interface DiagnosticsPanelProps {
   relayActive?: boolean
   relayNeedsAuth?: boolean
   onRelayLogin?: (password: string) => Promise<{ ok: boolean; error?: string }>
+  // Device pairing — sign in on a phone, type the code on a device that cannot
+  // run Google's consent screen.
+  isPaired?: boolean
+  pairingCode?: string | null
+  pairingExpiresAt?: number | null
+  pairingError?: string | null
+  onStartPairing?: () => void
+  onSubmitPairingCode?: (code: string) => Promise<{ ok: boolean; error?: string }>
+  onDismissPairingCode?: () => void
+  onUnpair?: () => void
 }
 
 function formatBytes(bytes: number): string {
@@ -96,7 +106,7 @@ function formatTime(ms: number): string {
   return date.toLocaleDateString()
 }
 
-export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSuggestions, showConfidenceIndicators, onToggleConfidenceIndicators, hasLearningData, onClearLearningData, favoriteCount, onOpenFavorites, learnedBrandCount, onOpenBrandTraining, onOpenStats, onOpenLearningTip, sheetId, setSheetId, syncState, onConnect, onReconnect, onDisconnect, onSyncNow, userEmail, lastSyncTime, needsReconnect, sessionActive, relayActive, relayNeedsAuth, onRelayLogin }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSuggestions, showConfidenceIndicators, onToggleConfidenceIndicators, hasLearningData, onClearLearningData, favoriteCount, onOpenFavorites, learnedBrandCount, onOpenBrandTraining, onOpenStats, onOpenLearningTip, sheetId, setSheetId, syncState, onConnect, onReconnect, onDisconnect, onSyncNow, userEmail, lastSyncTime, needsReconnect, sessionActive, relayActive, relayNeedsAuth, onRelayLogin, isPaired, pairingCode, pairingExpiresAt, pairingError, onStartPairing, onSubmitPairingCode, onDismissPairingCode, onUnpair }: DiagnosticsPanelProps) {
   const [swStatus, setSWStatus] = useState<SWStatus>({
     isRegistered: false,
     isActive: false,
@@ -991,6 +1001,14 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                 relayActive={relayActive}
                 relayNeedsAuth={relayNeedsAuth}
                 onRelayLogin={onRelayLogin}
+                isPaired={isPaired}
+                pairingCode={pairingCode}
+                pairingExpiresAt={pairingExpiresAt}
+                pairingError={pairingError}
+                onStartPairing={onStartPairing}
+                onSubmitPairingCode={onSubmitPairingCode}
+                onDismissPairingCode={onDismissPairingCode}
+                onUnpair={onUnpair}
               />
             </div>
 
