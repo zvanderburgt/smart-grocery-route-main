@@ -1012,6 +1012,29 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                 <Trash size={14} className="mr-2 shrink-0" />
                 <span className="truncate">{isClearing ? 'Clearing…' : 'Clear All Caches'}</span>
               </Button>
+
+              <div className="pt-2 text-center text-xs text-muted-foreground">
+                <p className="mb-1">Your list stays on this device unless you turn on sync.</p>
+                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground pointer-coarse:py-2"
+                  >
+                    Privacy Policy
+                  </a>
+                  <span aria-hidden="true">·</span>
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground pointer-coarse:py-2"
+                  >
+                    Terms of Service
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </SheetContent>

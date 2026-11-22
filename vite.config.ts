@@ -75,6 +75,13 @@ export default defineConfig({
       includeAssets: ["apple-touch-icon.png", "icon-192.png", "icon-512.png"],
       workbox: {
         navigateFallback: "/index.html",
+        // The legal pages are real static HTML, not SPA routes. Without this the
+        // navigation fallback answers /privacy and /terms with the app shell, so
+        // the policy Google's reviewers are pointed at would render the grocery
+        // list instead of the policy. Netlify rewrites those URLs to
+        // privacy.html / terms.html (netlify.toml); let the service worker stand
+        // aside for them entirely.
+        navigateFallbackDenylist: [/^\/(privacy|terms)(\.html)?$/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

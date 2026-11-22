@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "space grotesk",
+        "createdAt": "2026-11-17T21:49:34.968Z",
+        "reason": "project DESIGN.md documents Space Grotesk as the display and body face (lines 151-153); established app identity, not a new choice"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sfmono-regular",
+        "createdAt": "2026-11-22T14:42:09.740Z",
+        "reason": "same inline <code> usage in terms.html; case variant emitted by the detector"
+      }
+    ]
+  }
+}

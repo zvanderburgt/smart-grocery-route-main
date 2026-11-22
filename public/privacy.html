@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Privacy Policy — Breadcrumb</title>
+    <meta
+      name="description"
+      content="How Breadcrumb, the grocery list app, handles your information: what stays on your device, what Google Sheets sync sends, and what the optional photo scan does."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://breadcrumbapp.netlify.app/privacy" />
+    <meta name="theme-color" content="#4ca567" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1f2e23" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: oklch(0.98 0.01 145);
+        --surface: oklch(0.96 0.01 145);
+        --ink: oklch(0.25 0.02 145);
+        --muted: oklch(0.5 0.01 145);
+        --border: oklch(0.88 0.01 145);
+        --primary: oklch(0.55 0.19 145);
+        --tint: oklch(0.955 0.03 145);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: oklch(0.15 0.01 145);
+          --surface: oklch(0.18 0.01 145);
+          --ink: oklch(0.95 0.005 145);
+          --muted: oklch(0.72 0.01 145);
+          --border: oklch(0.28 0.01 145);
+          --primary: oklch(0.60 0.19 145);
+          --tint: oklch(0.21 0.03 145);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        padding: 0 1.25rem 4.5rem;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.65;
+        letter-spacing: 0.005em;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 44rem;
+        margin: 0 auto;
+      }
+      header.top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.5rem 0 1.25rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 700;
+        font-size: 1.0625rem;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .brand span.dot {
+        width: 0.5625rem;
+        height: 0.5625rem;
+        border-radius: 9999px;
+        background: var(--primary);
+        display: inline-block;
+      }
+      a.back {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        padding: 0.375rem 0.75rem;
+        white-space: nowrap;
+      }
+      a.back:hover {
+        color: var(--ink);
+        border-color: var(--muted);
+      }
+      h1 {
+        font-size: 1.75rem;
+        line-height: 1.2;
+        letter-spacing: -0.015em;
+        font-weight: 700;
+        margin: 2rem 0 0.5rem;
+      }
+      .dates {
+        color: var(--muted);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        margin: 0 0 1.75rem;
+      }
+      h2 {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        letter-spacing: -0.005em;
+        margin: 2.25rem 0 0.625rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border);
+      }
+      h2:first-of-type {
+        border-top: none;
+        padding-top: 0;
+      }
+      h3 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin: 1.5rem 0 0.375rem;
+      }
+      p,
+      ul,
+      ol {
+        margin: 0 0 0.875rem;
+      }
+      ul,
+      ol {
+        padding-left: 1.25rem;
+      }
+      li {
+        margin-bottom: 0.375rem;
+      }
+      li::marker {
+        color: var(--muted);
+      }
+      a {
+        color: var(--primary);
+        text-underline-offset: 0.15em;
+      }
+      strong {
+        font-weight: 600;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.875em;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.375rem;
+        padding: 0.05em 0.3em;
+      }
+      .summary {
+        background: var(--tint);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1rem 1.125rem;
+        margin: 0 0 1.75rem;
+      }
+      .summary p:last-child {
+        margin-bottom: 0;
+      }
+      footer.bottom {
+        margin-top: 3rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.8125rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
+      }
+      footer.bottom a {
+        color: var(--muted);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      footer.bottom a:hover {
+        color: var(--ink);
+      }
+      @media (max-width: 30rem) {
+        h1 {
+          font-size: 1.5rem;
+        }
+        body {
+          font-size: 0.9375rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>Breadcrumb</a>
+        <a class="back" href="/">Back to the app</a>
+      </header>
+
+      <h1>Privacy Policy</h1>
+      <p class="dates">Effective 22 November 2026 · Last updated 22 November 2026</p>
+
+      <div class="summary">
+        <p>
+          <strong>The short version.</strong> Breadcrumb keeps your grocery list on the device you use
+          it on. There are no accounts, no analytics, no tracking and no advertising. The only time
+          your list leaves the device is when you turn on Google Sheets sync — and then it goes to a
+          spreadsheet in <em>your own</em> Google account, not to ours. Photo scanning is the one
+          optional feature that sends an image to a third party, and only when you tap scan.
+        </p>
+      </div>
+
+      <p>
+        Breadcrumb is a grocery-list app operated by Zack VanderBurgt ("Breadcrumb", "we", "us") as a
+        personal, household deployment at
+        <a href="https://breadcrumbapp.netlify.app">breadcrumbapp.netlify.app</a>. This policy
+        explains what the app does with your information. It applies to that site and to the same app
+        installed to a home screen or shown inside a Home Assistant dashboard.
+      </p>
+
+      <h2>1. What stays on your device</h2>
+      <p>
+        Breadcrumb stores its data in your browser's local storage for that site. Nothing in this
+        section is uploaded anywhere. It includes:
+      </p>
+      <ul>
+        <li>your grocery items, quantities, categories and checked state;</li>
+        <li>section names and the order you arranged them in;</li>
+        <li>favourites, saved recipes, learned brands and learned store categories;</li>
+        <li>shopping-trip history, used to suggest the route you usually walk;</li>
+        <li>display and behaviour settings;</li>
+        <li>
+          if you use the optional photo scanner: which OCR provider you picked, and any API key you
+          paste in for it;
+        </li>
+        <li>
+          if this deployment's sync uses the relay: a sync token that lets the app talk to the relay,
+          kept for up to 90 days.
+        </li>
+      </ul>
+      <p>
+        You can remove all of it at any time from your browser (clear site data for
+        <code>breadcrumbapp.netlify.app</code>), or from the app itself with Settings → Backup &amp;
+        Restore. Export a backup first if you want to keep the list.
+      </p>
+
+      <h2>2. Google Sheets sync (optional, off by default)</h2>
+      <p>
+        Sync copies your list into a Google Sheets spreadsheet that you choose, so several devices
+        can share one list. It uses Google's <code>spreadsheets</code> scope, which allows reading and
+        writing the spreadsheets you grant access to. The app only touches the one spreadsheet ID you
+        enter.
+      </p>
+      <p>What is written to the sheet: item names, quantities, categories, checked state, section order and sync timestamps. Nothing else is sent — no contacts, no email content, no location.</p>
+      <p>There are two ways this deployment can perform the sync:</p>
+      <ul>
+        <li>
+          <strong>Direct sign-in.</strong> You authorise in the browser and the app calls Google's
+          Sheets API with a short-lived access token that lives in that tab's session storage and is
+          discarded when the tab closes.
+        </li>
+        <li>
+          <strong>Relay.</strong> A Netlify Function on this site holds a Google refresh token
+          supplied once by the person who set up the deployment, and forwards the same requests. This
+          exists because Google will not run its sign-in screen inside a dashboard iframe or an
+          Android webview. The refresh token is stored as an environment variable in the hosting
+          account, never in the page. If a shared password is configured, the relay asks for it before
+          it will serve data.
+        </li>
+      </ul>
+      <p>
+        In both cases the list is stored in the Google account that authorised the sync. We do not
+        keep a separate copy of your list. The contents of the spreadsheet are also governed by
+        Google's own terms and privacy policy. You can remove the data by clearing rows in the sheet,
+        deleting the sheet, or revoking the app's access at
+        <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer"
+          >myaccount.google.com/permissions</a
+        >.
+      </p>
+
+      <h3>Google user data and Limited Use</h3>
+      <p>
+        Breadcrumb's use and transfer to any other app of information received from Google APIs will
+        adhere to the
+        <a
+          href="https://developers.google.com/terms/api-services-user-data-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Google API Services User Data Policy</a
+        >, including the Limited Use requirements. In practice: Google user data is used only to
+        provide the sync feature you asked for, is not transferred to anyone else, is not used for
+        advertising, and is not read by any person except where you ask for support and share it.
+      </p>
+
+      <h2>3. Photo scanning (optional)</h2>
+      <p>
+        When you scan a photo or a screenshot of a list, the image is sent to the OCR provider
+        selected in Settings for text extraction. The two options are
+        <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener noreferrer">OpenRouter</a>
+        and
+        <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer">OpenCode</a>. The image
+        goes there and back; Breadcrumb does not store it on any server, and the scan result becomes
+        list items on your device. Those providers process requests under their own policies, which
+        may include short-term logging. Don't scan anything you would not send to that provider.
+      </p>
+      <p>
+        Barcode scanning is different: it looks the code up in a list bundled with the app on your
+        device and sends nothing anywhere.
+      </p>
+
+      <h2>4. Voice input</h2>
+      <p>
+        Voice entry uses the speech recognition built into your browser. In most browsers that means
+        the audio is processed by the browser vendor's speech service (Chrome sends it to Google).
+        Breadcrumb receives only the resulting text. If you don't use voice entry, no microphone
+        access is requested.
+      </p>
+
+      <h2>5. Hosting and technical logs</h2>
+      <p>
+        The site is hosted on Netlify, and its server-side features run as Netlify Functions. Like
+        any web host, Netlify records standard request logs — IP address, browser user agent,
+        requested URL and time — and keeps them under
+        <a href="https://www.netlify.com/privacy/" target="_blank" rel="noopener noreferrer"
+          >Netlify's privacy policy</a
+        >. The app also installs a service worker so it can open offline; that caches the app's own
+        files on your device and holds no personal data of its own.
+      </p>
+      <p>
+        Breadcrumb sets no cookies of its own and uses no analytics, pixels or advertising
+        identifiers. Google sets its own cookies on Google's own domain while you sign in; that part
+        is Google's, not ours.
+      </p>
+
+      <h2>6. What we don't do</h2>
+      <ul>
+        <li>no user accounts, no passwords for Breadcrumb itself;</li>
+        <li>no analytics, session recording, heatmaps or crash reporting services;</li>
+        <li>no advertising and no advertising identifiers;</li>
+        <li>no selling, renting or sharing of your data with data brokers;</li>
+        <li>no marketing email — the only email address involved is the one you write to us at.</li>
+      </ul>
+
+      <h2>7. How long data is kept, and how to delete it</h2>
+      <ul>
+        <li>
+          <strong>On your device:</strong> until you clear it. Settings → Backup &amp; Restore can
+          wipe the list, and clearing site data removes everything including settings.
+        </li>
+        <li>
+          <strong>In your spreadsheet:</strong> until you delete the rows or the file. Deleting the
+          list in the app propagates to the sheet on the next sync.
+        </li>
+        <li>
+          <strong>Deployment credentials:</strong> the relay's Google refresh token and any shared
+          password live in this site's environment variables. Ask us and we will delete or rotate
+          them; you can also revoke the token yourself at
+          <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer"
+            >myaccount.google.com/permissions</a
+          >, which makes relay sync stop working until a new one is minted.
+        </li>
+        <li>
+          <strong>Host logs:</strong> retained for the short period Netlify keeps them, then
+          discarded.
+        </li>
+      </ul>
+
+      <h2>8. Security</h2>
+      <p>
+        The site is served over HTTPS. Sync tokens are kept in the browser's own storage rather than
+        in a URL or a cookie, and the relay checks who is calling before it answers. No system is
+        perfectly secure, so treat the spreadsheet as the place your list is shared: anyone with
+        access to that Google account or that sheet can read it.
+      </p>
+
+      <h2>9. Children</h2>
+      <p>
+        Breadcrumb is not directed at children under 13, and we do not knowingly collect information
+        from them. The app has no accounts and no server-side profiles, so there is nothing to delete
+        beyond the data on the device.
+      </p>
+
+      <h2>10. Changes to this policy</h2>
+      <p>
+        If what the app does changes, this page changes with it and the date at the top is updated.
+        Material changes will be noted in the app. Continuing to use Breadcrumb after a change means
+        the updated policy applies.
+      </p>
+
+      <h2>11. Contact</h2>
+      <p>
+        Questions, deletion requests or anything else about privacy:
+        <a href="mailto:zvanderburgt@gmail.com">zvanderburgt@gmail.com</a>. We aim to reply within a
+        few days.
+      </p>
+
+      <footer class="bottom">
+        <span>© 2026 Breadcrumb</span>
+        <a href="/terms">Terms of Service</a>
+        <a href="/">Open the app</a>
+      </footer>
+    </div>
+  </body>
+</html>

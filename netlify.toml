@@ -20,3 +20,19 @@
 # itself with `export const config = { path: "/api/opencode/*" }`. Do not add a
 # redirect here: a 200 rewrite cannot forward the rest of the path, so every
 # request would arrive as /models and POSTs would 404.
+
+# Legal pages are static HTML in public/, copied to dist/ as privacy.html and
+# terms.html. These rewrites give them extension-less URLs (/privacy, /terms) to
+# paste into the OAuth consent screen. A plain 200 rewrite, not a redirect: the
+# URL must stay clean for Google's review and for anything that links to it.
+# Keep these in step with navigateFallbackDenylist in vite.config.ts, which stops
+# the service worker from answering these URLs with the app shell.
+[[redirects]]
+  from = "/privacy"
+  to = "/privacy.html"
+  status = 200
+
+[[redirects]]
+  from = "/terms"
+  to = "/terms.html"
+  status = 200

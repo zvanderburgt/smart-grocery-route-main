@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Terms of Service — Breadcrumb</title>
+    <meta
+      name="description"
+      content="The terms that apply to using Breadcrumb, the grocery list app: what it is, what it is not, your data and backups, and the limits of our liability."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://breadcrumbapp.netlify.app/terms" />
+    <meta name="theme-color" content="#4ca567" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1f2e23" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: oklch(0.98 0.01 145);
+        --surface: oklch(0.96 0.01 145);
+        --ink: oklch(0.25 0.02 145);
+        --muted: oklch(0.5 0.01 145);
+        --border: oklch(0.88 0.01 145);
+        --primary: oklch(0.55 0.19 145);
+        --tint: oklch(0.955 0.03 145);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: oklch(0.15 0.01 145);
+          --surface: oklch(0.18 0.01 145);
+          --ink: oklch(0.95 0.005 145);
+          --muted: oklch(0.72 0.01 145);
+          --border: oklch(0.28 0.01 145);
+          --primary: oklch(0.60 0.19 145);
+          --tint: oklch(0.21 0.03 145);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        margin: 0;
+        padding: 0 1.25rem 4.5rem;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.65;
+        letter-spacing: 0.005em;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 44rem;
+        margin: 0 auto;
+      }
+      header.top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.5rem 0 1.25rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 700;
+        font-size: 1.0625rem;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .brand span.dot {
+        width: 0.5625rem;
+        height: 0.5625rem;
+        border-radius: 9999px;
+        background: var(--primary);
+        display: inline-block;
+      }
+      a.back {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--muted);
+        text-decoration: none;
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        padding: 0.375rem 0.75rem;
+        white-space: nowrap;
+      }
+      a.back:hover {
+        color: var(--ink);
+        border-color: var(--muted);
+      }
+      h1 {
+        font-size: 1.75rem;
+        line-height: 1.2;
+        letter-spacing: -0.015em;
+        font-weight: 700;
+        margin: 2rem 0 0.5rem;
+      }
+      .dates {
+        color: var(--muted);
+        font-size: 0.8125rem;
+        font-weight: 500;
+        margin: 0 0 1.75rem;
+      }
+      h2 {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        letter-spacing: -0.005em;
+        margin: 2.25rem 0 0.625rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border);
+      }
+      h2:first-of-type {
+        border-top: none;
+        padding-top: 0;
+      }
+      p,
+      ul,
+      ol {
+        margin: 0 0 0.875rem;
+      }
+      ul,
+      ol {
+        padding-left: 1.25rem;
+      }
+      li {
+        margin-bottom: 0.375rem;
+      }
+      li::marker {
+        color: var(--muted);
+      }
+      a {
+        color: var(--primary);
+        text-underline-offset: 0.15em;
+      }
+      strong {
+        font-weight: 600;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.875em;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.375rem;
+        padding: 0.05em 0.3em;
+      }
+      .summary {
+        background: var(--tint);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1rem 1.125rem;
+        margin: 0 0 1.75rem;
+      }
+      .summary p:last-child {
+        margin-bottom: 0;
+      }
+      footer.bottom {
+        margin-top: 3rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.8125rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
+      }
+      footer.bottom a {
+        color: var(--muted);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      footer.bottom a:hover {
+        color: var(--ink);
+      }
+      @media (max-width: 30rem) {
+        h1 {
+          font-size: 1.5rem;
+        }
+        body {
+          font-size: 0.9375rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <a class="brand" href="/"><span class="dot" aria-hidden="true"></span>Breadcrumb</a>
+        <a class="back" href="/">Back to the app</a>
+      </header>
+
+      <h1>Terms of Service</h1>
+      <p class="dates">Effective 22 November 2026 · Last updated 22 November 2026</p>
+
+      <div class="summary">
+        <p>
+          <strong>The short version.</strong> Breadcrumb is a free grocery-list app, provided as it
+          is, with no promises about uptime or about never losing a list. Your list is yours and stays
+          on your device unless you turn on sync. Keep a backup of anything you would be annoyed to
+          lose.
+        </p>
+      </div>
+
+      <h2>1. Agreement</h2>
+      <p>
+        These terms are an agreement between you and Zack VanderBurgt ("Breadcrumb", "we", "us"),
+        who operates Breadcrumb at
+        <a href="https://breadcrumbapp.netlify.app">breadcrumbapp.netlify.app</a>. By using the app —
+        in a browser, installed to your home screen, or embedded in a dashboard — you accept them. If
+        you do not accept them, don't use the app.
+      </p>
+      <p>
+        Our <a href="/privacy">Privacy Policy</a> explains what happens to your information and forms
+        part of these terms.
+      </p>
+
+      <h2>2. What Breadcrumb is, and what it isn't</h2>
+      <p>
+        Breadcrumb is a grocery list that organises items by store section, remembers the order you
+        shop in, and can sync a shared list through Google Sheets. It is provided for personal and
+        household use.
+      </p>
+      <p>It is not:</p>
+      <ul>
+        <li>a shopping, pricing or availability service — aisle order, categories and suggestions are estimates learned from your own trips, and a store can change its layout at any time;</li>
+        <li>dietary, nutritional, medical or allergy advice — always check packaging yourself;</li>
+        <li>a backup service, or a system of record for anything important.</li>
+      </ul>
+
+      <h2>3. Your list, your data, your backups</h2>
+      <p>
+        You own the content you put into Breadcrumb. You are responsible for it, including anything
+        you scan, dictate or sync.
+      </p>
+      <p>
+        List data lives in your browser's storage on each device. That means clearing site data,
+        using private browsing, switching browsers or losing a device can lose your list, and a sync
+        that is misconfigured can overwrite a list with an older one. The app has an export/restore
+        feature in Settings → Backup &amp; Restore; use it before anything you would not want to
+        redo by hand.
+      </p>
+      <p>
+        When sync is on, the shared copy lives in a Google Sheets spreadsheet in the authorising
+        Google account. Who else can read that sheet is controlled by that Google account, not by us.
+      </p>
+
+      <h2>4. Third-party services</h2>
+      <p>
+        Breadcrumb depends on services we do not control, and their terms apply to their part of the
+        job:
+      </p>
+      <ul>
+        <li>
+          <strong>Google</strong> — sign-in and the Sheets API for sync, under
+          <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer"
+            >Google's terms</a
+          >;
+        </li>
+        <li>
+          <strong>Netlify</strong> — hosting and the server-side functions, under
+          <a href="https://www.netlify.com/legal/terms-of-use/" target="_blank" rel="noopener noreferrer"
+            >Netlify's terms</a
+          >;
+        </li>
+        <li>
+          <strong>OpenRouter or OpenCode</strong> — optional photo scanning, under that provider's
+          terms, if you turn scanning on.
+        </li>
+      </ul>
+      <p>
+        If one of them is down, changes its API or restricts access, the matching feature may stop
+        working. That is outside our control and not a breach of these terms.
+      </p>
+
+      <h2>5. Acceptable use</h2>
+      <p>Please don't:</p>
+      <ul>
+        <li>use the app to break the law, or to store or share content you have no right to;</li>
+        <li>try to access a spreadsheet, account or deployment that isn't yours;</li>
+        <li>probe, overload, scrape or attempt to bypass the app's access controls, including the sync relay's password gate;</li>
+        <li>resell the hosted service, or present it as your own product;</li>
+        <li>upload malware, or use scanning to process images you don't have permission to send to a third party.</li>
+      </ul>
+      <p>
+        We may suspend access to this deployment if it is being used in a way that breaks these
+        rules or costs someone else money or harm.
+      </p>
+
+      <h2>6. Availability and changes</h2>
+      <p>
+        Breadcrumb is free and run as a personal project. It may change, lose features, or be taken
+        offline, and there is no uptime or support commitment. We will try to be reasonable about it,
+        and where a change affects your data we will say so in the app first.
+      </p>
+
+      <h2>7. No warranty</h2>
+      <p>
+        To the fullest extent permitted by law, Breadcrumb is provided "as is" and "as available",
+        without warranties of any kind, express or implied, including merchantability, fitness for a
+        particular purpose, accuracy and non-infringement. We do not warrant that the app will be
+        uninterrupted or error-free, or that data will not be lost.
+      </p>
+
+      <h2>8. Limitation of liability</h2>
+      <p>
+        To the fullest extent permitted by law, we are not liable for indirect, incidental, special,
+        consequential or punitive damages, or for lost data, lost profits, wasted shopping trips or
+        the cost of substitute services, arising out of or related to your use of Breadcrumb — whether
+        based in contract, tort, negligence or otherwise, and even if we were told such damages were
+        possible.
+      </p>
+      <p>
+        Where liability cannot be excluded, our total liability for all claims relating to the app is
+        limited to one hundred Canadian dollars (CAD $100). Some jurisdictions do not allow certain
+        exclusions, so parts of this section may not apply to you; nothing here limits rights you have
+        that cannot legally be waived.
+      </p>
+
+      <h2>9. Intellectual property</h2>
+      <p>
+        The app's name, design and code belong to their respective owners. The source is published
+        under the licence stated in its repository; that licence governs your rights to copy, modify
+        or redistribute the code. Your list content remains yours — we claim no ownership of it.
+      </p>
+
+      <h2>10. Ending your use</h2>
+      <p>
+        You can stop using Breadcrumb at any time; clearing site data removes your copy. We may end
+        or restrict access to this deployment, for example if these terms are broken or the project
+        is retired. Sections 7, 8 and 9 survive.
+      </p>
+
+      <h2>11. Governing law</h2>
+      <p>
+        These terms are governed by the laws of the Province of Ontario and the federal laws of
+        Canada applicable there, without regard to conflict-of-law rules. The courts of Ontario have
+        exclusive jurisdiction over any dispute, subject to any right you have to bring a claim in
+        your local courts under consumer law.
+      </p>
+
+      <h2>12. Contact</h2>
+      <p>
+        Questions about these terms:
+        <a href="mailto:zvanderburgt@gmail.com">zvanderburgt@gmail.com</a>.
+      </p>
+
+      <footer class="bottom">
+        <span>© 2026 Breadcrumb</span>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/">Open the app</a>
+      </footer>
+    </div>
+  </body>
+</html>
