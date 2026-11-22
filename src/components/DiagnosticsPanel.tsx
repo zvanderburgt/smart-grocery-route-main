@@ -70,6 +70,9 @@ interface DiagnosticsPanelProps {
   lastSyncTime: number | null
   needsReconnect?: boolean
   sessionActive?: boolean
+  relayActive?: boolean
+  relayNeedsAuth?: boolean
+  onRelayLogin?: (password: string) => Promise<{ ok: boolean; error?: string }>
 }
 
 function formatBytes(bytes: number): string {
@@ -93,7 +96,7 @@ function formatTime(ms: number): string {
   return date.toLocaleDateString()
 }
 
-export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSuggestions, showConfidenceIndicators, onToggleConfidenceIndicators, hasLearningData, onClearLearningData, favoriteCount, onOpenFavorites, learnedBrandCount, onOpenBrandTraining, onOpenStats, onOpenLearningTip, sheetId, setSheetId, syncState, onConnect, onReconnect, onDisconnect, onSyncNow, userEmail, lastSyncTime, needsReconnect, sessionActive }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSuggestions, showConfidenceIndicators, onToggleConfidenceIndicators, hasLearningData, onClearLearningData, favoriteCount, onOpenFavorites, learnedBrandCount, onOpenBrandTraining, onOpenStats, onOpenLearningTip, sheetId, setSheetId, syncState, onConnect, onReconnect, onDisconnect, onSyncNow, userEmail, lastSyncTime, needsReconnect, sessionActive, relayActive, relayNeedsAuth, onRelayLogin }: DiagnosticsPanelProps) {
   const [swStatus, setSWStatus] = useState<SWStatus>({
     isRegistered: false,
     isActive: false,
@@ -985,6 +988,9 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                 lastSyncTime={lastSyncTime}
                 needsReconnect={needsReconnect}
                 sessionActive={sessionActive}
+                relayActive={relayActive}
+                relayNeedsAuth={relayNeedsAuth}
+                onRelayLogin={onRelayLogin}
               />
             </div>
 

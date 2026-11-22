@@ -384,11 +384,91 @@ Notes:
 
 ---
 
+## 🔁 Server relay (sync without a Google session in the page)
+
+Google sign-in only works in a first-class browser tab. Inside an iframe Google
+refuses to serve its consent screen (`x-frame-options: DENY`), and inside an
+Android webview the consent screen opens in the system browser, so the token
+ends up in a browser the app can never read. Anything embedded — a Home
+Assistant dashboard card, a kiosk tablet — therefore cannot sign in.
+
+The relay sidesteps all of that: a Netlify Function holds a Google **refresh
+token** and forwards Sheets calls for the app. The page only ever talks to its
+own origin, so framing stops mattering. The app detects the relay through
+`/api/sheets-relay/health`; when that answers, every device syncs with no
+sign-in step and the sheet id comes from the server. When it does not answer,
+nothing changes — Google sign-in is still used.
+
+**One-time setup**
+
+1. Google Cloud Console → APIs & Services → Credentials → your **Web
+   application** OAuth client → Authorized redirect URIs → add:
+
+   ```
+   https://breadcrumbapp.netlify.app/api/relay-setup
+   ```
+
+2. Netlify → Site configuration → Environment variables → add
+   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (Credentials page → the client
+   → Download JSON, or copy the secret shown there), then redeploy so the
+   functions see them.
+
+3. Open `https://breadcrumbapp.netlify.app/api/relay-setup` in a normal
+   browser, sign in with the account that owns the sheet, approve, and copy the
+   refresh token it prints.
+
+4. Back in Netlify, add:
+
+   | Variable | Value |
+   | --- | --- |
+   | `GOOGLE_REFRESH_TOKEN` | the token from step 3 |
+   | `SHEET_ID` | the spreadsheet id from its URL |
+   | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | from step 2 |
+
+5. Redeploy, then check `https://breadcrumbapp.netlify.app/api/sheets-relay/health`
+   returns `{"ok":true,"sheetId":"..."}`.
+
+**Password gate**
+
+Without it, anyone who visits the site can read and write that spreadsheet
+through the relay. Setting `APP_PASSWORD` closes that: every relay call then
+needs a token from `POST /api/auth/login`, which is just the shared password.
+
+| Variable | Value |
+| --- | --- |
+| `APP_PASSWORD` | the password you and your household type on each device |
+
+How it behaves:
+
+- Each device prompts once in Settings → Google Sheets Sync, then remembers the
+  token in that origin's `localStorage` for 90 days. A cookie would be blocked in
+  the cross-origin Home Assistant iframe; storage in the frame's own partition
+  is not.
+- The signing key is derived from `APP_PASSWORD`, so **changing the password
+  signs every device out** — that is the only revocation mechanism. To lock a
+  lost device out, change the password.
+- Wrong passwords are throttled per IP (8 per 10 minutes).
+- Leave `APP_PASSWORD` unset and the relay stays open, which is what earlier
+  deploys did.
+
+**What the relay will and will not do**
+
+- It serves exactly one spreadsheet (`SHEET_ID`) and refuses any other path.
+- It accepts only `GET`/`POST`/`PUT`, and refuses cross-site callers via
+  `sec-fetch-site`.
+- The credential is a Google refresh token: whoever holds it can read and write
+  that account's spreadsheets until it is revoked at
+  `myaccount.google.com/permissions`. Keep it in Netlify env vars only.
+- Revoking it breaks sync for relay devices until a new token is minted.
+
+---
+
 ## 🔐 Security Notes
 
 - **OAuth tokens** stored in memory only (not localStorage)
 - **Sheet ID** stored in localStorage (not sensitive)
-- **No server** – fully client-side, no backend to secure
+- **Client-side by default**, with an opt-in server relay that holds a Google
+  refresh token and can reach exactly one spreadsheet (see above)
 - **Scope limited** to `spreadsheets` only
 - **Two-user model** – only shared accounts can access the sheet
 
