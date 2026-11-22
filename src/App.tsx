@@ -232,6 +232,13 @@ function App() {
   }, [])
 
   useEffect(() => {
+    // A "Pair a device" return mints a code and drops the user back on the list.
+    // The code only renders inside the settings sheet, so open it for them:
+    // otherwise the ten-minute clock runs on a code nobody saw.
+    if (googleSheetsSync.pairingCode) setIsDiagnosticsOpen(true)
+  }, [googleSheetsSync.pairingCode])
+
+  useEffect(() => {
     // The organizer runs asynchronously, so sections stay empty for a moment
     // after load — nothing to compare against until they exist.
     if (sections.length === 0) return
