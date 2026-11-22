@@ -25,6 +25,27 @@ window.addEventListener('pwa-apply-update', () => {
   void updateSW(true)
 })
 
+/**
+ * A new service worker installs and claims the page, but the document that is
+ * already open keeps running the old bundle — which is how a shipped fix sat
+ * unseen until the app was reopened enough times (or reinstalled). Reload once
+ * when the controller changes on an already-controlled page; on the first visit
+ * there is no previous controller and no reason to reload.
+ */
+const wasControlled = Boolean(navigator.serviceWorker?.controller)
+const RELOADED_KEY = 'pwa-controller-reloaded'
+
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  if (!wasControlled) return
+  try {
+    if (sessionStorage.getItem(RELOADED_KEY) === '1') return
+    sessionStorage.setItem(RELOADED_KEY, '1')
+  } catch {
+    // Storage unavailable: a single reload is still the right move.
+  }
+  window.location.reload()
+})
+
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
     <App />
