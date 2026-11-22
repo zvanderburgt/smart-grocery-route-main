@@ -7,26 +7,22 @@
  * localStorage is per-origin, so the new address cannot see the old one's data
  * and no server round trip can bridge it.
  *
- * The pasted text is deliberately **never** held in React state and never left
- * in the textarea. A recovery paste can be megabytes of raw localStorage; a
- * controlled textarea hands that string back to React on every render while the
- * browser lays out one enormous line, which locks the tab on a phone. So paste
- * is intercepted (`preventDefault`), the text stays out of the DOM, and the UI
- * shows a summary instead.
+ * Two things here are deliberate and were each learned the hard way:
+ *
+ * - **It expands in place.** This used to open a Dialog on top of the settings
+ *   Sheet. A modal inside a modal leaves a phone showing the settings panel with
+ *   the page scroll locked and no dialog in view — the app looks frozen. The
+ *   form now renders inline, where the sheet's own scrolling still works.
+ * - **Pasted text never enters React state or the DOM.** A recovery paste can be
+ *   megabytes of raw localStorage; a controlled textarea hands that string back
+ *   on every render while the browser lays out one enormous line, which locks
+ *   the tab. Paste is intercepted, and the UI shows a summary instead.
  */
 
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { DownloadSimple, UploadSimple } from '@phosphor-icons/react'
+import { DownloadSimple, UploadSimple, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import {
   applyBackup,
@@ -46,7 +42,7 @@ const TOUCH_TARGET = 'pointer-coarse:min-h-11'
  * client (an installed PWA still serving an older precache) can be told apart
  * from a broken one in a single glance.
  */
-const RESTORE_REVISION = 'v4'
+const RESTORE_REVISION = 'v5'
 
 /** Past this, parsing on the main thread is the wrong tool: use the file path. */
 const MAX_PASTE_CHARS = 8_000_000
@@ -68,14 +64,14 @@ function formatSize(bytes: number): string {
 }
 
 export function BackupRestore() {
-  const [open, setOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [captured, setCaptured] = useState<Captured | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [isRestoring, setIsRestoring] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
   const areaRef = useRef<HTMLTextAreaElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const reset = () => {
     setCaptured(null)
@@ -83,6 +79,23 @@ export function BackupRestore() {
     setIsParsing(false)
     setFileName(null)
     if (areaRef.current) areaRef.current.value = ''
+  }
+
+  const toggleOpen = () => {
+    const next = !isOpen
+    setIsOpen(next)
+    if (!next) {
+      reset()
+      return
+    }
+    window.setTimeout(() => {
+      // jsdom and older browsers may not implement this; scrolling is a nicety.
+      try {
+        panelRef.current?.scrollIntoView({ block: 'nearest' })
+      } catch {
+        // no-op
+      }
+    }, 50)
   }
 
   /**
@@ -186,111 +199,103 @@ export function BackupRestore() {
         <span className="truncate">Export Backup</span>
       </Button>
       <Button
-        onClick={() => setOpen(true)}
+        onClick={toggleOpen}
+        aria-expanded={isOpen}
         className={`w-full text-xs sm:text-sm ${TOUCH_TARGET}`}
         variant="outline"
         size="sm"
       >
-        <UploadSimple size={14} className="mr-2 shrink-0" />
+        {isOpen ? <CaretUp size={14} className="mr-2 shrink-0" /> : <CaretDown size={14} className="mr-2 shrink-0" />}
         <span className="truncate">Restore From Backup</span>
       </Button>
+
+      {isOpen && (
+        <div ref={panelRef} className="space-y-3 rounded-md border p-3">
+          <p className="text-xs text-muted-foreground">
+            Pick the backup file, or paste the backup text. Anything already on this device is
+            kept; the backup only fills in what is missing.
+          </p>
+
+          {/* A `display:none` input driven by `input.click()` is the pattern that
+              silently does nothing in an installed Android PWA. A label over a
+              visually-hidden input is activated natively by the tap instead. */}
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className={`w-full text-xs sm:text-sm ${TOUCH_TARGET}`}
+          >
+            <label htmlFor="backup-file">
+              <UploadSimple size={14} className="mr-2 shrink-0" />
+              <span className="truncate">{fileName ?? 'Choose backup file'}</span>
+            </label>
+          </Button>
+          <input
+            id="backup-file"
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            onChange={(event) => {
+              void handleFile(event.target.files?.[0])
+              event.target.value = ''
+            }}
+          />
+
+          {captured ? (
+            <div className="space-y-2 rounded-md border p-3">
+              <p className="text-xs sm:text-sm font-semibold">Backup ready</p>
+              <p className="text-xs text-muted-foreground">
+                {describeCounts(captured.counts)} · {formatSize(captured.bytes)}
+              </p>
+              <Button variant="ghost" size="sm" className="px-0 text-xs" onClick={reset}>
+                Use a different backup
+              </Button>
+            </div>
+          ) : (
+            <Textarea
+              ref={areaRef}
+              placeholder="…or paste the backup JSON here"
+              className="min-h-24 font-mono text-xs"
+              spellCheck={false}
+              onPaste={(event) => {
+                // Keep a multi-MB paste out of the DOM: a giant single line in a
+                // textarea is what locked the tab.
+                event.preventDefault()
+                ingest(event.clipboardData.getData('text'))
+              }}
+              onInput={(event) => {
+                // A typed or differently-pasted value still counts. Short
+                // fragments are dropped instead of raising "not a backup" at the
+                // first keystroke; nobody hand-types a backup.
+                const value = event.currentTarget.value
+                event.currentTarget.value = ''
+                if (value.length >= 100) ingest(value)
+              }}
+            />
+          )}
+
+          {isParsing && <p className="text-xs text-muted-foreground">Checking backup…</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-xs" onClick={toggleOpen}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className={`flex-1 text-xs sm:text-sm ${TOUCH_TARGET}`}
+              onClick={handleRestore}
+              disabled={!captured || isRestoring}
+            >
+              <span className="truncate">Restore</span>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* A stale installed app still renders the old section; the stamp is how
           that gets spotted instead of mistaken for a broken button. */}
       <p className="text-xs text-muted-foreground">Restore {RESTORE_REVISION}</p>
-
-      <Dialog
-        open={open}
-        onOpenChange={(next) => {
-          setOpen(next)
-          if (!next) reset()
-        }}
-      >
-        <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Restore from backup</DialogTitle>
-            <DialogDescription>
-              Pick the backup file, or paste the backup text. Anything already on this device is
-              kept; the backup only fills in what is missing.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            {/* A `display:none` input driven by `input.click()` is the pattern
-                that silently does nothing in an installed Android PWA: the tap
-                never reaches the picker, so the dialog sits there with a
-                disabled Restore button. A label over a visually-hidden input is
-                activated natively by the tap instead. */}
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className={`w-full text-xs sm:text-sm ${TOUCH_TARGET}`}
-            >
-              <label htmlFor="backup-file">
-                <UploadSimple size={14} className="mr-2 shrink-0" />
-                <span className="truncate">{fileName ?? 'Choose backup file'}</span>
-              </label>
-            </Button>
-            <input
-              id="backup-file"
-              ref={fileRef}
-              type="file"
-              accept="application/json,.json"
-              className="sr-only"
-              onChange={(event) => {
-                void handleFile(event.target.files?.[0])
-                event.target.value = ''
-              }}
-            />
-
-            {captured ? (
-              <div className="space-y-2 rounded-md border p-3">
-                <p className="text-xs sm:text-sm font-semibold">Backup ready</p>
-                <p className="text-xs text-muted-foreground">
-                  {describeCounts(captured.counts)} · {formatSize(captured.bytes)}
-                </p>
-                <Button variant="ghost" size="sm" className="px-0 text-xs" onClick={reset}>
-                  Use a different backup
-                </Button>
-              </div>
-            ) : (
-              <Textarea
-                ref={areaRef}
-                placeholder="…or paste the backup JSON here"
-                className="min-h-24 font-mono text-xs"
-                spellCheck={false}
-                onPaste={(event) => {
-                  // Keep a multi-MB paste out of the DOM: a giant single line in
-                  // a textarea is what locked the tab.
-                  event.preventDefault()
-                  ingest(event.clipboardData.getData('text'))
-                }}
-                onInput={(event) => {
-                  // A typed or differently-pasted value still counts. Short
-                  // fragments are dropped instead of raising "not a backup" at
-                  // the first keystroke; nobody hand-types a backup.
-                  const value = event.currentTarget.value
-                  event.currentTarget.value = ''
-                  if (value.length >= 100) ingest(value)
-                }}
-              />
-            )}
-
-            {isParsing && <p className="text-xs text-muted-foreground">Checking backup…</p>}
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            {captured && <p className="text-xs text-muted-foreground">Restoring reloads the app.</p>}
-          </div>
-
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleRestore} disabled={!captured || isRestoring}>
-              Restore
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
