@@ -46,7 +46,7 @@ const TOUCH_TARGET = 'pointer-coarse:min-h-11'
  * client (an installed PWA still serving an older precache) can be told apart
  * from a broken one in a single glance.
  */
-const RESTORE_REVISION = 'v3'
+const RESTORE_REVISION = 'v4'
 
 /** Past this, parsing on the main thread is the wrong tool: use the file path. */
 const MAX_PASTE_CHARS = 8_000_000
@@ -215,26 +215,33 @@ export function BackupRestore() {
           </DialogHeader>
 
           <div className="space-y-3">
+            {/* A `display:none` input driven by `input.click()` is the pattern
+                that silently does nothing in an installed Android PWA: the tap
+                never reaches the picker, so the dialog sits there with a
+                disabled Restore button. A label over a visually-hidden input is
+                activated natively by the tap instead. */}
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className={`w-full text-xs sm:text-sm ${TOUCH_TARGET}`}
+            >
+              <label htmlFor="backup-file">
+                <UploadSimple size={14} className="mr-2 shrink-0" />
+                <span className="truncate">{fileName ?? 'Choose backup file'}</span>
+              </label>
+            </Button>
             <input
+              id="backup-file"
               ref={fileRef}
               type="file"
               accept="application/json,.json"
-              className="hidden"
+              className="sr-only"
               onChange={(event) => {
                 void handleFile(event.target.files?.[0])
                 event.target.value = ''
               }}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={`w-full text-xs sm:text-sm ${TOUCH_TARGET}`}
-              onClick={() => fileRef.current?.click()}
-            >
-              <UploadSimple size={14} className="mr-2 shrink-0" />
-              <span className="truncate">{fileName ?? 'Choose backup file'}</span>
-            </Button>
 
             {captured ? (
               <div className="space-y-2 rounded-md border p-3">
