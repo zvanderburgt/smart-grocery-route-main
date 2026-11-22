@@ -6,9 +6,16 @@
  * carry data between origins, which is what a new deploy URL or a new phone is:
  * localStorage is per-origin, so the new address cannot see the old one's data
  * and no server round trip can bridge it.
+ *
+ * The pasted text is deliberately **never** held in React state and never left
+ * in the textarea. A recovery paste can be megabytes of raw localStorage; a
+ * controlled textarea hands that string back to React on every render while the
+ * browser lays out one enormous line, which locks the tab on a phone. So paste
+ * is intercepted (`preventDefault`), the text stays out of the DOM, and the UI
+ * shows a summary instead.
  */
 
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -28,23 +35,83 @@ import {
   describeCounts,
   parseBackup,
   serializeBackup,
+  type BackupCounts,
+  type BackupFile,
 } from '@/lib/backup'
 
 const TOUCH_TARGET = 'pointer-coarse:min-h-11'
+
+/** Past this, parsing on the main thread is the wrong tool: use the file path. */
+const MAX_PASTE_CHARS = 8_000_000
+
+interface Captured {
+  backup: BackupFile
+  counts: BackupCounts
+  bytes: number
+}
 
 function backupFileName(now: Date): string {
   return `breadcrumb-backup-${now.toISOString().slice(0, 10)}.json`
 }
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function BackupRestore() {
   const [open, setOpen] = useState(false)
-  const [text, setText] = useState('')
+  const [captured, setCaptured] = useState<Captured | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isParsing, setIsParsing] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [isRestoring, setIsRestoring] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const areaRef = useRef<HTMLTextAreaElement>(null)
 
-  const parsed = useMemo(() => (text.trim() ? parseBackup(text) : null), [text])
-  const incomingCounts = parsed?.ok ? countBackup(parsed.backup.data) : null
+  const reset = () => {
+    setCaptured(null)
+    setError(null)
+    setIsParsing(false)
+    setFileName(null)
+    if (areaRef.current) areaRef.current.value = ''
+  }
+
+  /**
+   * Take the text, keep it out of state, and parse on the next tick so the tap
+   * paints before the main thread goes to work.
+   */
+  const ingest = (text: string) => {
+    setError(null)
+    setCaptured(null)
+
+    if (text.length > MAX_PASTE_CHARS) {
+      setError(
+        `That backup is ${formatSize(text.length)} — too large to parse here. Restore it from the file instead.`,
+      )
+      return
+    }
+
+    setIsParsing(true)
+    window.setTimeout(() => {
+      const parsed = parseBackup(text)
+      if (!parsed.ok) {
+        setError(parsed.error)
+        setIsParsing(false)
+        return
+      }
+      setCaptured({
+        backup: parsed.backup,
+        counts: countBackup(parsed.backup.data),
+        bytes: text.length,
+      })
+      setIsParsing(false)
+      // The textarea has done its job; empty it so no large string sits in the
+      // layout and the summary takes its place.
+      if (areaRef.current) areaRef.current.value = ''
+    }, 30)
+  }
 
   const handleExport = () => {
     try {
@@ -67,26 +134,25 @@ export function BackupRestore() {
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return
+    setFileName(file.name)
     try {
-      setText(await file.text())
-      setFileName(file.name)
+      ingest(await file.text())
     } catch (error) {
       toast.error('Could not read that file: ' + String(error))
     }
   }
 
   const handleRestore = () => {
-    if (!parsed?.ok) return
+    if (!captured) return
     setIsRestoring(true)
     try {
-      const result = applyBackup(window.localStorage, parsed.backup)
-      const summary = describeCounts(result.counts)
+      const result = applyBackup(window.localStorage, captured.backup)
       if (result.written.length === 0) {
-        toast(`Nothing new to restore — ${summary} already here`)
+        toast(`Nothing new to restore — ${describeCounts(result.counts)} already here`)
         setIsRestoring(false)
         return
       }
-      toast.success(`Restored — ${summary}. Reloading…`)
+      toast.success(`Restored — ${describeCounts(result.counts)}. Reloading…`)
       // The running app holds its state in React; re-read everything from the
       // freshly merged storage instead of trying to poke twenty hooks.
       window.setTimeout(() => window.location.reload(), 600)
@@ -122,7 +188,13 @@ export function BackupRestore() {
         <span className="truncate">Restore From Backup</span>
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) reset()
+        }}
+      >
         <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Restore from backup</DialogTitle>
@@ -154,32 +226,49 @@ export function BackupRestore() {
               <span className="truncate">{fileName ?? 'Choose backup file'}</span>
             </Button>
 
-            <Textarea
-              value={text}
-              onChange={(event) => {
-                setText(event.target.value)
-                setFileName(null)
-              }}
-              placeholder="…or paste the backup JSON here"
-              className="min-h-24 font-mono text-xs"
-              spellCheck={false}
-            />
+            {captured ? (
+              <div className="space-y-2 rounded-md border p-3">
+                <p className="text-xs sm:text-sm font-semibold">Backup ready</p>
+                <p className="text-xs text-muted-foreground">
+                  {describeCounts(captured.counts)} · {formatSize(captured.bytes)}
+                </p>
+                <Button variant="ghost" size="sm" className="px-0 text-xs" onClick={reset}>
+                  Use a different backup
+                </Button>
+              </div>
+            ) : (
+              <Textarea
+                ref={areaRef}
+                placeholder="…or paste the backup JSON here"
+                className="min-h-24 font-mono text-xs"
+                spellCheck={false}
+                onPaste={(event) => {
+                  // Keep a multi-MB paste out of the DOM: a giant single line in
+                  // a textarea is what locked the tab.
+                  event.preventDefault()
+                  ingest(event.clipboardData.getData('text'))
+                }}
+                onInput={(event) => {
+                  // A typed or differently-pasted value still counts. Short
+                  // fragments are dropped instead of raising "not a backup" at
+                  // the first keystroke; nobody hand-types a backup.
+                  const value = event.currentTarget.value
+                  event.currentTarget.value = ''
+                  if (value.length >= 100) ingest(value)
+                }}
+              />
+            )}
 
-            {text.trim() && parsed && !parsed.ok && (
-              <p className="text-xs text-destructive">{parsed.error}</p>
-            )}
-            {incomingCounts && (
-              <p className="text-xs text-muted-foreground">
-                Found {describeCounts(incomingCounts)}. Restoring reloads the app.
-              </p>
-            )}
+            {isParsing && <p className="text-xs text-muted-foreground">Checking backup…</p>}
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            {captured && <p className="text-xs text-muted-foreground">Restoring reloads the app.</p>}
           </div>
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleRestore} disabled={!parsed?.ok || isRestoring}>
+            <Button onClick={handleRestore} disabled={!captured || isRestoring}>
               Restore
             </Button>
           </DialogFooter>

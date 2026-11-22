@@ -19,22 +19,26 @@ The old build cannot be updated from here, so run this bookmarklet *on the old
 origin* to scrape its `localStorage` into the same backup format the new install
 restores from.
 
-1. Bookmark any page, edit it, and set the URL to the snippet below (paste works
-   in the bookmark editor; Chrome only strips `javascript:` in the omnibox).
-2. Open the old address, wait for the app to render.
-3. Tap the bookmark. The backup text lands on the clipboard (a prompt appears if
-   the clipboard is blocked).
+1. Bookmark any page, edit it, and set the URL to the snippet below (type
+   `javascript:` by hand — Chrome can strip the scheme when it is pasted — then
+   paste the rest).
+2. Open the old address in the browser (not the home-screen icon), wait for the
+   app to render.
+3. Tap the bookmark. It downloads `breadcrumb-backup.json` and tells you the
+   size in the alert.
 4. Open the new address → ⚙️ → **Backup & Restore** → **Restore From Backup** →
-   paste → **Restore**.
+   **Choose backup file** → pick the download.
 
 ```js
-javascript:(()=>{const skip=/token|api[-_]key|paired|oauth|device-id|password|secret/i;const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(skip.test(k))continue;data[k]=localStorage.getItem(k);}const text=JSON.stringify({format:'breadcrumb-backup',version:1,createdAt:Date.now(),app:'Breadcrumb',data});const done=()=>alert('Backup copied ('+Math.round(text.length/1024)+' KB). Paste it into Restore on the new app.');if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,()=>prompt('Copy this backup text:',text));}else{prompt('Copy this backup text:',text);}})()
+(()=>{const K=['grocery-items','item-relationships','shopping-trips','recipe-favorites','learned-brands','learned-barcodes','item-category-hints','section-custom-names','section-order','collapsed-sections','show-learning-tip','show-suggestions','show-confidence-indicators','google-sheets-config','google-sheets-pending-deletions','google-sheets-dirty'];const d={};K.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)d[k]=v});const t=JSON.stringify({format:'breadcrumb-backup',version:1,createdAt:Date.now(),app:'Breadcrumb',data:d});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'application/json'}));a.download='breadcrumb-backup.json';a.click();alert('Backup saved: '+Math.round(t.length/1024)+' KB. Restore it from the file in the new app.')})()
 ```
 
-Why values are still strings: the snippet copies raw `localStorage` values
-instead of parsed ones, so keys the app no longer knows about survive. The
-restore parser accepts both shapes and drops anything not in the backup key
-list — credentials included, which is also why they are skipped here.
+**Take only the app's own keys, not the whole storage.** An earlier version
+swept every key and produced a multi-megabyte file — mostly the cached model
+catalogues, which the restore drops anyway — and pasting that into a phone
+locked the tab. The restore parser accepts the wide snapshot too, and now keeps
+the pasted text out of the DOM, but the file above is a few KB instead of
+megabytes, which is the difference between working and not on a phone.
 
 ## If the old address no longer loads at all
 
