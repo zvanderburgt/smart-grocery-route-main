@@ -644,3 +644,40 @@ the offline problem (a `wa-sqlite`/OPFS file in the browser, which then needs it
   <https://www.sqlite.org/whentouse.html>
 - Third-party iframes get partitioned storage —
   <https://developer.mozilla.org/en-US/docs/Web/Privacy/State_Partitioning>
+
+---
+
+## 14. Does a Supabase backend remove the Google auth problem, or move it?
+
+**It removes the Google problem and substitutes a smaller, more ordinary one.** These are two
+different walls and only one of them is Google's:
+
+1. *Google's wall* — `accounts.google.com` refuses to render inside a frame (`x-frame-options: DENY`)
+   and hands the flow to the system browser when called from an Android WebView, so a Google token
+   can only be minted where a real browser tab exists. Everything built around pairing exists solely
+   because of this.
+2. *Supabase's own auth* — has nothing to do with Google until you ask for it. `signInWithPassword`
+   is a `fetch` to Supabase's REST endpoint: no navigation, no third-party cookie, no framed consent
+   screen. It works unchanged inside the HA iframe and inside the VACA WebView.
+
+So on Supabase the tablet signs in with **email + password**, in the page, once. No pairing codes, no
+refresh token with a 7-day life, no client secret on a server. The whole pairing subsystem
+(`oauth-pair`/`oauth-claim`/`oauth-token`, `paired-auth.ts`, the code dialog) becomes unnecessary.
+
+What it does *not* fix, and what is genuinely new:
+
+- **Google sign-in via Supabase (`signInWithOAuth`) reproduces wall 1 exactly** — Google is still the
+  consent screen, still blocked in a WebView, still frames-refused. Keep it as a convenience for real
+  browsers or drop it; never make it the only door.
+- **Email confirmation turns signup into an email round-trip.** Clicking a confirmation link opens the
+  default browser, so the session lands outside the WebView — the same handoff problem in a new
+  costume. For a two-person app, disable "Confirm email" and create accounts from a phone/desktop;
+  sign-in on the tablet is then just a password.
+- **Auth is not the security boundary any more — RLS is.** The anon key ships in the bundle and can
+  read anything the policies allow, so `select`/`insert`/`update` policies per household are now
+  load-bearing code with real teeth if wrong. That is the main new skill to acquire.
+- The free tier's 7-day pause (see §3) is an availability problem, not an auth one.
+
+**Net:** the pairing work is what you build when Google is the identity provider. With Supabase,
+Google stops being in the data path and the auth problem shrinks to "a password form plus correct
+RLS" — which is the ordinary problem every app has, and one you can test locally.
