@@ -112,4 +112,10 @@ export interface SyncState {
   lastError?: string;
   pendingWrites: number;
   remoteVersion?: number;
+  /**
+   * What the last completed run actually did: rows written to the sheet and how
+   * many items came back. "Synced" with `pushed: 0` on both devices is the
+   * signature of two devices talking to different sheets, so it is worth showing.
+   */
+  lastRun?: { pushed: number; received: number };
 }

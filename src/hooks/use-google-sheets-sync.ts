@@ -480,6 +480,10 @@ export function useGoogleSheetsSync({
           lastSyncAt: lastSyncAtRef.current,
           pendingWrites: 0,
           lastError: structure.headerWarning,
+          lastRun: {
+            pushed: result.writtenRows + result.appendedRows,
+            received: result.items.length,
+          },
         });
       } catch (err) {
         if (!isMountedRef.current) return;

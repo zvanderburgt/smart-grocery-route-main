@@ -102,6 +102,36 @@ describe('sync engine: sheet structure', () => {
     expect(result.items.map((entry) => entry.id).sort()).toEqual(['eggs', 'milk']);
     expect(dataRows(fake).map((row) => row[0]).sort()).toEqual(['eggs', 'milk']);
   });
+
+  it('carries an addition from one device to the other, in both directions', async () => {
+    // What "adding an item on my phone does not show on my tablet" means: two
+    // engines, one sheet, each starting with only its own list.
+    const fake = createFakeSheets();
+    const phone = makeEngine(fake, 'device-phone', 'me@example.com');
+    const tablet = makeEngine(fake, 'device-tablet', 'me@example.com');
+
+    clock = 1000;
+    const phoneFirst = await phone.sync([item({ id: 'milk', updatedBy: 'me@example.com' })], []);
+    expect(phoneFirst.items.map((entry) => entry.id)).toEqual(['milk']);
+
+    // Tablet opens with an empty list and must adopt what the phone pushed.
+    clock = 2000;
+    const tabletPull = await tablet.sync([], []);
+    expect(tabletPull.items.map((entry) => entry.id)).toEqual(['milk']);
+
+    // Now the tablet adds something of its own and pushes both.
+    clock = 3000;
+    await tablet.sync(
+      [tabletPull.items[0], item({ id: 'eggs', name: 'Eggs', updatedAt: 3000 })],
+      []
+    );
+
+    // The phone's next pull has to see the tablet's item.
+    clock = 4000;
+    const phonePull = await phone.sync([item({ id: 'milk', updatedBy: 'me@example.com' })], []);
+    expect(phonePull.items.map((entry) => entry.id).sort()).toEqual(['eggs', 'milk']);
+    expect(dataRows(fake).map((row) => row[0]).sort()).toEqual(['eggs', 'milk']);
+  });
 });
 
 describe('sync engine: write shape', () => {

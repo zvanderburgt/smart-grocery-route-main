@@ -240,6 +240,17 @@ export function GoogleSheetsSettings({
               )}
             </div>
           </div>
+          {/* Which credential, which spreadsheet, and what the last run moved.
+              Two devices "synced" to different sheets look perfectly healthy
+              without this line. */}
+          <p className="text-xs text-muted-foreground font-mono leading-relaxed select-all">
+            {relayActive ? 'relay' : isPaired ? 'paired' : 'google'}
+            {' · '}
+            {sheetId ? `sheet …${sheetId.slice(-6)}` : 'no sheet id set'}
+            {syncState.lastRun
+              ? ` · last run ${syncState.lastRun.pushed} pushed, ${syncState.lastRun.received} in sheet`
+              : ''}
+          </p>
         </div>
 
         <Separator />
