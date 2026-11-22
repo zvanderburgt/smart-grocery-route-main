@@ -7,7 +7,7 @@
         "rule": "overused-font",
         "value": "space grotesk",
         "createdAt": "2026-11-17T21:49:34.968Z",
-        "reason": "project DESIGN.md documents Space Grotesk as the display and body face (lines 151-153); established app identity, not a new choice"
+        "reason": "project DESIGN.md documents Space Grotesk as the brand face; these legal pages follow the app's own type system"
       },
       {
         "rule": "design-system-font",
