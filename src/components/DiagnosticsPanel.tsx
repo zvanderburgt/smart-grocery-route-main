@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { GoogleSheetsSettings } from '@/components/GoogleSheetsSettings'
+import { BackupRestore } from '@/components/BackupRestore'
 import { GearSix, Download, Trash, ArrowClockwise, Heart, GraduationCap, ChartBar, Lightbulb, Link, CaretDown, CaretUp, Mailbox, Copy, WarningCircle, CheckCircle, SpinnerBall, Question, CloudArrowUp } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import { getOpenRouterApiKey, setOpenRouterApiKey, clearOpenRouterApiKey, hasOpenRouterApiKey, getSelectedOpenRouterModel, setSelectedOpenRouterModel, validateOpenRouterModel, getAvailableOpenRouterModels, getAutoSelectModel, setAutoSelectModel, type ModelValidationResult, type OpenRouterModel } from '@/lib/ocr-openrouter'
@@ -890,6 +891,10 @@ export function DiagnosticsPanel({ open, onClose, showSuggestions, onToggleSugge
                 <span className="truncate">Clear Learning Data</span>
               </Button>
             </div>
+
+            <Separator />
+
+            <BackupRestore />
 
             <Separator />
 
