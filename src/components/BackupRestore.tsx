@@ -41,6 +41,13 @@ import {
 
 const TOUCH_TARGET = 'pointer-coarse:min-h-11'
 
+/**
+ * Bumped whenever this flow changes. It is printed under the buttons so a stale
+ * client (an installed PWA still serving an older precache) can be told apart
+ * from a broken one in a single glance.
+ */
+const RESTORE_REVISION = 'v3'
+
 /** Past this, parsing on the main thread is the wrong tool: use the file path. */
 const MAX_PASTE_CHARS = 8_000_000
 
@@ -187,6 +194,9 @@ export function BackupRestore() {
         <UploadSimple size={14} className="mr-2 shrink-0" />
         <span className="truncate">Restore From Backup</span>
       </Button>
+      {/* A stale installed app still renders the old section; the stamp is how
+          that gets spotted instead of mistaken for a broken button. */}
+      <p className="text-xs text-muted-foreground">Restore {RESTORE_REVISION}</p>
 
       <Dialog
         open={open}

@@ -40,6 +40,19 @@ locked the tab. The restore parser accepts the wide snapshot too, and now keeps
 the pasted text out of the DOM, but the file above is a few KB instead of
 megabytes, which is the difference between working and not on a phone.
 
+## If the new app's Restore dialog misbehaves
+
+The dialog is a convenience wrapper around the same merge. To write the backup
+straight into the new origin, run this bookmarklet **on the new address** and
+pick the downloaded file: it writes the app's own keys and reloads.
+
+```js
+(()=>{const K=['grocery-items','item-relationships','shopping-trips','recipe-favorites','learned-brands','learned-barcodes','item-category-hints','section-custom-names','section-order','collapsed-sections','show-learning-tip','show-suggestions','show-confidence-indicators','google-sheets-config','google-sheets-pending-deletions','google-sheets-dirty'];const i=document.createElement('input');i.type='file';i.accept='application/json,.json';i.onchange=async()=>{const f=i.files[0];if(!f)return;let j;try{j=JSON.parse(await f.text())}catch(e){alert('That file is not a Breadcrumb backup.');return}const d=j.data||j;let n=0;K.forEach(k=>{if(d[k]!==undefined){localStorage.setItem(k,typeof d[k]==='string'?d[k]:JSON.stringify(d[k]));n++}});if(!n){alert('No Breadcrumb data found in that file.');return}location.reload()};i.click()})()
+```
+
+This one **overwrites** each key instead of merging, so run it on an install
+that has nothing worth keeping (a fresh one), not on top of live data.
+
 ## If the old address no longer loads at all
 
 The old origin's storage is unreachable from outside that origin. The remaining
