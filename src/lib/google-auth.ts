@@ -14,9 +14,12 @@
  *  - **`state` is generated, stored and verified.** It used to be written to
  *    storage and never read back, and the redirect path replaced it with sheet
  *    metadata, so the OAuth response was accepted from anyone.
- *  - **Token kept in sessionStorage, not localStorage**, and never logged. The
- *    old code console.logged the GIS token response and the full page URL
- *    (which carries `access_token` in the fragment).
+ *  - **Token never logged.** The old code console.logged the GIS token response
+ *    and the full page URL (which carries `access_token` in the fragment). It is
+ *    persisted in localStorage (one-hour, spreadsheets-only) so a relaunch does
+ *    not cost a fresh Google prompt — see `tokenStore()` for that trade.
+ *
+ * The pending OAuth record stays in sessionStorage, one per tab per attempt.
  *
  * The implicit flow stays the default for the device you are using: switching
  * everyone to code+PKCE would break existing connections for no visible gain.
@@ -77,9 +80,41 @@ let tokenResolver: ((token: string) => void) | null = null;
 let tokenRejecter: ((error: Error) => void) | null = null;
 let refreshPromise: Promise<string> | null = null;
 
+/**
+ * Where the access token lives.
+ *
+ * It was sessionStorage, which is the safer default — nothing left on disk —
+ * but it costs a sign-in on every launch: sessionStorage dies with the tab, and
+ * on Android an installed app is a fresh browsing context each time it opens, so
+ * "Reconnect" came back on every single launch. What is persisted is a one-hour,
+ * spreadsheets-only access token, and the paired-session refresh token already
+ * lives in localStorage; keeping this one there trades a marginal XSS surface
+ * for not asking the user to sign in every time they open the app.
+ *
+ * localStorage first, sessionStorage as the fallback when it is blocked (Safari
+ * private mode, storage disabled), in which case behaviour is what it was.
+ */
+const TOKEN_PROBE_KEY = 'breadcrumb-storage-probe';
+
+function tokenStore(): Storage {
+  try {
+    const local = window.localStorage;
+    local.setItem(TOKEN_PROBE_KEY, '1');
+    local.removeItem(TOKEN_PROBE_KEY);
+    return local;
+  } catch {
+    return window.sessionStorage;
+  }
+}
+
+/** The pending OAuth record is per sign-in attempt, so it stays per tab. */
+function pendingStore(): Storage {
+  return window.sessionStorage;
+}
+
 function store(): Storage {
   try {
-    return window.sessionStorage;
+    return tokenStore();
   } catch {
     throw new Error('Browser storage unavailable');
   }
@@ -99,11 +134,24 @@ function saveToken(token: string, expiry: number): void {
 function clearToken(): void {
   accessToken = null;
   tokenExpiry = 0;
+  // Older builds kept the token in sessionStorage; clear that copy too so it
+  // cannot outlive a sign-out after an upgrade.
+  for (const storage of [tokenStore(), safeSessionStorage()]) {
+    if (!storage) continue;
+    try {
+      storage.removeItem(TOKEN_STORAGE_KEY);
+      storage.removeItem(TOKEN_EXPIRY_KEY);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function safeSessionStorage(): Storage | null {
   try {
-    store().removeItem(TOKEN_STORAGE_KEY);
-    store().removeItem(TOKEN_EXPIRY_KEY);
+    return window.sessionStorage;
   } catch {
-    // ignore
+    return null;
   }
 }
 
@@ -286,7 +334,7 @@ export function signOut(): void {
   const token = accessToken;
   clearToken();
   try {
-    store().removeItem(OAUTH_PENDING_KEY);
+    pendingStore().removeItem(OAUTH_PENDING_KEY);
   } catch {
     // ignore
   }
@@ -299,7 +347,7 @@ export function signOut(): void {
 
 export function readPendingOAuth(): PendingOAuth | null {
   try {
-    const raw = store().getItem(OAUTH_PENDING_KEY);
+    const raw = pendingStore().getItem(OAUTH_PENDING_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PendingOAuth;
     return parsed && typeof parsed.state === 'string' ? parsed : null;
@@ -310,7 +358,7 @@ export function readPendingOAuth(): PendingOAuth | null {
 
 export function clearPendingOAuth(): void {
   try {
-    store().removeItem(OAUTH_PENDING_KEY);
+    pendingStore().removeItem(OAUTH_PENDING_KEY);
   } catch {
     // ignore
   }
@@ -326,7 +374,7 @@ export function redirectToGoogleOAuth(clientIdValue: string, context: { sheetId?
 
   const state = generateState();
   try {
-    store().setItem(
+    pendingStore().setItem(
       OAUTH_PENDING_KEY,
       JSON.stringify({ state, sheetId: context.sheetId, sheetName: context.sheetName } satisfies PendingOAuth)
     );
@@ -402,7 +450,7 @@ export function redirectToGoogleOAuthCode(
 
   const state = generateState();
   try {
-    store().setItem(
+    pendingStore().setItem(
       OAUTH_PENDING_KEY,
       JSON.stringify({
         state,

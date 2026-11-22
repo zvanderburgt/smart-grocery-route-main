@@ -118,7 +118,7 @@ describe('google auth: token handling', () => {
     expect(fakeLocation.href).toBe('https://app.example.com/');
   });
 
-  it('keeps the token in sessionStorage (not localStorage) and never logs it', async () => {
+  it('persists the token across launches and never logs it', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const auth = await freshAuthModule();
     await auth.initGoogleAuth('client-123');
@@ -127,8 +127,10 @@ describe('google auth: token handling', () => {
     tokenCallback?.({ access_token: 'secret-token', expires_in: 3600 });
     await pending;
 
-    expect(window.sessionStorage.getItem('google_sheets_access_token')).toBe('secret-token');
-    expect(window.localStorage.getItem('google_sheets_access_token')).toBeNull();
+    // localStorage, not sessionStorage: an Android launch is a new browsing
+    // context, so a per-tab token means a Google prompt on every open.
+    expect(window.localStorage.getItem('google_sheets_access_token')).toBe('secret-token');
+    expect(window.sessionStorage.getItem('google_sheets_access_token')).toBeNull();
     const logged = logSpy.mock.calls.flat().join(' ');
     expect(logged).not.toContain('secret-token');
   });
@@ -144,7 +146,7 @@ describe('google auth: silent recovery', () => {
 
     await expect(pending).resolves.toBe(true);
     expect(auth.isSignedIn()).toBe(true);
-    expect(window.sessionStorage.getItem('google_sheets_access_token')).toBe('tok-silent');
+    expect(window.localStorage.getItem('google_sheets_access_token')).toBe('tok-silent');
     expect(fakeLocation.href).toBe('https://app.example.com/');
   });
 
@@ -173,9 +175,9 @@ describe('google auth: silent recovery', () => {
     await expect(next).resolves.toBe('tok-after-timeout');
   });
 
-  it('reuses a restored sessionStorage token without asking Google', async () => {
-    window.sessionStorage.setItem('google_sheets_access_token', 'stored-token');
-    window.sessionStorage.setItem('google_sheets_token_expiry', String(Date.now() + 3_600_000));
+  it('reuses a token restored from a previous launch without asking Google', async () => {
+    window.localStorage.setItem('google_sheets_access_token', 'stored-token');
+    window.localStorage.setItem('google_sheets_token_expiry', String(Date.now() + 3_600_000));
 
     const auth = await freshAuthModule();
     await auth.initGoogleAuth('client-123');
@@ -225,7 +227,7 @@ describe('google auth: OAuth redirect', () => {
     const result = auth.handleOAuthRedirect();
 
     expect(result).toEqual({ token: 'tok-9', sheetId: 'sheet-9', sheetName: 'GroceryList' });
-    expect(window.sessionStorage.getItem('google_sheets_access_token')).toBe('tok-9');
+    expect(window.localStorage.getItem('google_sheets_access_token')).toBe('tok-9');
     expect(replaceSpy).toHaveBeenCalled();
     expect(String(replaceSpy.mock.calls[0][2])).toBe('/');
   });
@@ -238,7 +240,7 @@ describe('google auth: OAuth redirect', () => {
     const result = auth.handleOAuthRedirect();
 
     expect(result).toBeNull();
-    expect(window.sessionStorage.getItem('google_sheets_access_token')).toBeNull();
+    expect(window.localStorage.getItem('google_sheets_access_token')).toBeNull();
     expect(auth.readPendingOAuth()).toBeNull();
   });
 
